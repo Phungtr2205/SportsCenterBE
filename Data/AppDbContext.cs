@@ -30,6 +30,7 @@ namespace SportsCenterAPI.Data
         public DbSet<CancellationPolicy> CancellationPolicies { get; set; } = null!;
         public DbSet<ClassReview> ClassReviews { get; set; } = null!;
         public DbSet<SupportTicket> SupportTickets { get; set; } = null!;
+        public DbSet<GymCheckIn> GymCheckIns { get; set; } = null!;
         #endregion
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -114,9 +115,21 @@ namespace SportsCenterAPI.Data
                 .HasFilter("\"TransactionReference\" IS NOT NULL"); // Đã sửa [] thành ""
 
             modelBuilder.Entity<SupportTicket>()
-            .HasOne(t => t.Member).WithMany().HasForeignKey(t => t.MemberId).OnDelete(DeleteBehavior.Restrict);
+                .HasOne(t => t.Member).WithMany().HasForeignKey(t => t.MemberId).OnDelete(DeleteBehavior.Restrict);
             modelBuilder.Entity<SupportTicket>()
                 .HasOne(t => t.HandledByUser).WithMany().HasForeignKey(t => t.HandledByUserId).OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<GymCheckIn>()
+                .HasOne(g => g.Member)
+                .WithMany()
+                .HasForeignKey(g => g.MemberId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<GymCheckIn>()
+                .HasOne(g => g.CheckedByUser)
+                .WithMany()
+                .HasForeignKey(g => g.CheckedInByUserId)
+                .OnDelete(DeleteBehavior.Restrict);
             #endregion
 
             #region 2. Decimal Precision Configurations
