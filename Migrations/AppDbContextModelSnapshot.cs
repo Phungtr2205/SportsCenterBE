@@ -331,6 +331,44 @@ namespace SportsCenterAPI.Migrations
                     b.ToTable("Exercises");
                 });
 
+            modelBuilder.Entity("SportsCenterAPI.Models.GymCheckIn", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CheckInTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("CheckOutTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int?>("CheckedInByUserId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("MemberId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<int?>("SubscriptionId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CheckedInByUserId");
+
+                    b.HasIndex("MemberId");
+
+                    b.HasIndex("SubscriptionId");
+
+                    b.ToTable("GymCheckIns");
+                });
+
             modelBuilder.Entity("SportsCenterAPI.Models.Member", b =>
                 {
                     b.Property<int>("Id")
@@ -988,6 +1026,31 @@ namespace SportsCenterAPI.Migrations
                         .IsRequired();
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("SportsCenterAPI.Models.GymCheckIn", b =>
+                {
+                    b.HasOne("SportsCenterAPI.Models.User", "CheckedByUser")
+                        .WithMany()
+                        .HasForeignKey("CheckedInByUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("SportsCenterAPI.Models.Member", "Member")
+                        .WithMany()
+                        .HasForeignKey("MemberId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("SportsCenterAPI.Models.MemberSubscription", "Subscription")
+                        .WithMany()
+                        .HasForeignKey("SubscriptionId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("CheckedByUser");
+
+                    b.Navigation("Member");
+
+                    b.Navigation("Subscription");
                 });
 
             modelBuilder.Entity("SportsCenterAPI.Models.Member", b =>
