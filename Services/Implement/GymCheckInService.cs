@@ -15,6 +15,68 @@ public class GymCheckInService : IGymCheckInService
         _context = context;
     }
 
+    // 1. Hội viên lấy thông tin thẻ và chuỗi QR của mình
+    public async Task<MemberQrResponse> GetMyQrCodeAsync(int userId)
+    {
+        var member = await _context.Members
+            .Include(m => m.User)
+            .FirstOrDefaultAsync(m => m.UserId == userId)
+            ?? throw new KeyNotFoundException("Không tìm thấy thông tin hội viên của tài khoản này.");
+
+        var now = DateTime.UtcNow;
+        var activeSub = await _context.MemberSubscriptions
+            .Include(s => s.Package)
+            .Where(s => s.MemberId == member.Id && s.Status == "Active")
+            .Where(s => s.StartDate <= now && s.EndDate >= now)
+            .OrderByDescending(s => s.EndDate)
+            .FirstOrDefaultAsync();
+
+        string memberCode = $"SC-MEM-{member.Id:D6}";
+
+        return new MemberQrResponse
+        {
+            MemberId = member.Id,
+            MemberCode = memberCode,
+            QrData = memberCode,
+            FullName = member.User.FullName,
+            PhoneNumber = member.User.PhoneNumber ?? string.Empty,
+            PackageName = activeSub?.Package.PackageName,
+            PackageStatus = activeSub != null ? "Active" : "NoneOrExpired",
+            ExpireDate = activeSub?.EndDate
+        };
+    }
+
+    // 2. Lễ tân quét mã QR điểm danh
+    public async Task<GymCheckInResponse> ScanQrCheckInAsync(int staffUserId, ScanQrRequest request)
+    {
+        var rawCode = request.QrCode.Trim();
+        int? memberId = null;
+
+        // Bóc tách mã: hỗ trợ dạng "SC-MEM-000001", "SC-1", hoặc số ID trực tiếp "1"
+        if (rawCode.StartsWith("SC-MEM-", StringComparison.OrdinalIgnoreCase))
+        {
+            if (int.TryParse(rawCode.Substring(7), out int parsedId)) memberId = parsedId;
+        }
+        else if (rawCode.StartsWith("SC-", StringComparison.OrdinalIgnoreCase))
+        {
+            if (int.TryParse(rawCode.Substring(3), out int parsedId)) memberId = parsedId;
+        }
+        else if (int.TryParse(rawCode, out int directId))
+        {
+            memberId = directId;
+        }
+
+        // Tự động phân luồng: nếu giải mã được ID thì tìm theo ID, ngược lại coi chuỗi là SĐT
+        var checkInReq = new CheckInRequest
+        {
+            MemberId = memberId,
+            PhoneNumber = memberId.HasValue ? null : rawCode,
+            Notes = string.IsNullOrWhiteSpace(request.Notes) ? $"Quét mã QR: {rawCode}" : request.Notes
+        };
+
+        return await CheckInMemberAsync(staffUserId, checkInReq);
+    }
+
     public async Task<GymCheckInResponse> CheckInMemberAsync(int staffUserId, CheckInRequest request)
     {
         // 1. Tìm Member theo MemberId HOẶC Số điện thoại
@@ -39,9 +101,9 @@ public class GymCheckInService : IGymCheckInService
         }
 
         if (member == null)
-            throw new KeyNotFoundException("Không tìm thấy hội viên với thông tin cung cấp.");
+            throw new KeyNotFoundException("Không tìm thấy hội viên với mã hoặc số điện thoại cung cấp.");
 
-        // 2. Nghiệp vụ: Kiểm tra xem hội viên có gói tập nào còn hạn (Active) hay không
+        // 2. Kiểm tra gói tập còn hạn không
         var now = DateTime.UtcNow;
         var activeSub = await _context.MemberSubscriptions
             .Include(s => s.Package)
@@ -53,7 +115,7 @@ public class GymCheckInService : IGymCheckInService
         if (activeSub == null)
             throw new InvalidOperationException("Hội viên không có gói tập nào đang hoạt động hoặc gói tập đã hết hạn!");
 
-        // 3. Kiểm tra tránh check-in trùng lặp nếu chưa check-out
+        // 3. Tránh check-in trùng lặp nếu chưa check-out trong ngày
         var openCheckIn = await _context.GymCheckIns
             .Where(g => g.MemberId == member.Id && g.CheckOutTime == null)
             .Where(g => g.CheckInTime >= now.Date)
@@ -133,6 +195,7 @@ public class GymCheckInService : IGymCheckInService
         {
             Id = g.Id,
             MemberId = member.Id,
+            MemberCode = $"SC-MEM-{member.Id:D6}",
             MemberName = member.User?.FullName ?? "Hội viên",
             PhoneNumber = member.User?.PhoneNumber ?? string.Empty,
             PackageName = packageName,
