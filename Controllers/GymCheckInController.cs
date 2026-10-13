@@ -18,7 +18,31 @@ public class GymCheckInsController : ControllerBase
         _checkInService = checkInService;
     }
 
-    // Lễ tân quẹt thẻ / nhập SĐT điểm danh khách vào cửa
+    // 1. Hội viên mở app lấy mã thẻ QR của chính mình
+    [HttpGet("my-qr")]
+    [Authorize(Roles = "Member")]
+    public async Task<IActionResult> GetMyQr()
+    {
+        var userIdStr = User.FindFirst("UserId")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(userIdStr)) return Unauthorized();
+
+        var result = await _checkInService.GetMyQrCodeAsync(int.Parse(userIdStr));
+        return Ok(result);
+    }
+
+    // 2. Lễ tân quét mã QR của hội viên tại cổng vào
+    [HttpPost("scan-qr")]
+    [Authorize(Roles = "Receptionist,Manager")]
+    public async Task<IActionResult> ScanQr([FromBody] ScanQrRequest request)
+    {
+        var userIdStr = User.FindFirst("UserId")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(userIdStr)) return Unauthorized();
+
+        var result = await _checkInService.ScanQrCheckInAsync(int.Parse(userIdStr), request);
+        return Ok(result);
+    }
+
+    // 3. Lễ tân nhập tay MemberId hoặc SĐT (phương án phụ nếu không quét QR)
     [HttpPost("check-in")]
     [Authorize(Roles = "Receptionist,Manager")]
     public async Task<IActionResult> CheckIn([FromBody] CheckInRequest request)
@@ -30,7 +54,7 @@ public class GymCheckInsController : ControllerBase
         return Ok(result);
     }
 
-    // Lễ tân bấm Check-out khi khách ra về
+    // 4. Check-out khi khách ra về
     [HttpPut("{id}/check-out")]
     [Authorize(Roles = "Receptionist,Manager")]
     public async Task<IActionResult> CheckOut(int id)
@@ -39,7 +63,7 @@ public class GymCheckInsController : ControllerBase
         return Ok(result);
     }
 
-    // Lễ tân xem danh sách khách đã vào trung tâm trong ngày hôm nay
+    // 5. Xem danh sách khách đã vào trong ngày
     [HttpGet("today")]
     [Authorize(Roles = "Receptionist,Manager")]
     public async Task<IActionResult> GetTodayCheckIns()
@@ -48,7 +72,7 @@ public class GymCheckInsController : ControllerBase
         return Ok(result);
     }
 
-    // Hội viên tự xem lịch sử ra vào trung tâm của chính mình
+    // 6. Hội viên xem lịch sử điểm danh của mình
     [HttpGet("my-history")]
     [Authorize(Roles = "Member")]
     public async Task<IActionResult> GetMyHistory()
