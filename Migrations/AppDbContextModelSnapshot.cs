@@ -253,6 +253,9 @@ namespace SportsCenterAPI.Migrations
                     b.Property<DateTime>("EndsAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<int?>("RoomId")
+                        .HasColumnType("integer");
+
                     b.Property<DateTime>("StartsAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -266,6 +269,8 @@ namespace SportsCenterAPI.Migrations
                     b.HasIndex("CancellationPolicyId");
 
                     b.HasIndex("ClassId");
+
+                    b.HasIndex("RoomId");
 
                     b.HasIndex("CoachId", "StartsAt", "EndsAt");
 
@@ -649,6 +654,39 @@ namespace SportsCenterAPI.Migrations
                     b.ToTable("RefreshTokens");
                 });
 
+            modelBuilder.Entity("SportsCenterAPI.Models.Room", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("Capacity")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Location")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("RoomType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Rooms");
+                });
+
             modelBuilder.Entity("SportsCenterAPI.Models.Sport", b =>
                 {
                     b.Property<int>("Id")
@@ -1010,11 +1048,18 @@ namespace SportsCenterAPI.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("SportsCenterAPI.Models.Room", "Room")
+                        .WithMany("ClassSessions")
+                        .HasForeignKey("RoomId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.Navigation("CancellationPolicy");
 
                     b.Navigation("Class");
 
                     b.Navigation("Coach");
+
+                    b.Navigation("Room");
                 });
 
             modelBuilder.Entity("SportsCenterAPI.Models.Coach", b =>
@@ -1243,6 +1288,11 @@ namespace SportsCenterAPI.Migrations
             modelBuilder.Entity("SportsCenterAPI.Models.MembershipPackage", b =>
                 {
                     b.Navigation("Subscriptions");
+                });
+
+            modelBuilder.Entity("SportsCenterAPI.Models.Room", b =>
+                {
+                    b.Navigation("ClassSessions");
                 });
 
             modelBuilder.Entity("SportsCenterAPI.Models.Sport", b =>

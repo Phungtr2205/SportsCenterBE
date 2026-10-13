@@ -31,6 +31,7 @@ namespace SportsCenterAPI.Data
         public DbSet<ClassReview> ClassReviews { get; set; } = null!;
         public DbSet<SupportTicket> SupportTickets { get; set; } = null!;
         public DbSet<GymCheckIn> GymCheckIns { get; set; } = null!;
+        public DbSet<Room> Rooms { get; set; } = null!;
         #endregion
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -130,6 +131,12 @@ namespace SportsCenterAPI.Data
                 .WithMany()
                 .HasForeignKey(g => g.CheckedInByUserId)
                 .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<ClassSession>()
+                .HasOne(cs => cs.Room)
+                .WithMany(r => r.ClassSessions)
+                .HasForeignKey(cs => cs.RoomId)
+                .OnDelete(DeleteBehavior.SetNull);
             #endregion
 
             #region 2. Decimal Precision Configurations

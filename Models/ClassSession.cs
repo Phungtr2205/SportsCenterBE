@@ -18,4 +18,8 @@ public class ClassSession
     [MaxLength(500)] public string? CancellationReason { get; set; }
     public ICollection<ClassRegistration> Registrations { get; set; } = new List<ClassRegistration>();
     public ICollection<Attendance> Attendances { get; set; } = new List<Attendance>();
+
+    // Gán phòng tập cho buổi học
+    public int? RoomId { get; set; }
+    public Room? Room { get; set; }
 }
