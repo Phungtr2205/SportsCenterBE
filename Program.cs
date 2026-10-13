@@ -174,6 +174,9 @@ builder.Services.AddScoped<ISupportTicketService, SupportTicketService>();
 // Gym Check-In Service
 builder.Services.AddScoped<IGymCheckInService, GymCheckInService>();
 
+// Room Service
+builder.Services.AddScoped<IRoomService, RoomService>();
+
 var app = builder.Build();
 
 QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
