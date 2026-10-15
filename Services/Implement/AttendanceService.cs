@@ -1,73 +1,188 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using SportsCenterAPI.Data;
 using SportsCenterAPI.DTOs.Attendances;
+using SportsCenterAPI.Helpers;
 using SportsCenterAPI.Models;
 using SportsCenterAPI.Services.Interface;
-using SportsCenterAPI.Data;
 
-namespace SportsCenterAPI.Services.Implement
+namespace SportsCenterAPI.Services.Implement;
+
+public class AttendanceService(AppDbContext context) : IAttendanceService
 {
-    public class AttendanceService(AppDbContext context) : IAttendanceService
+    /// <summary>
+    /// Tạo hoặc cập nhật điểm danh.
+    /// Chỉ HLV phụ trách buổi học được thực hiện.
+    /// Hội viên phải đăng ký đúng buổi và chưa hủy.
+    /// </summary>
+    public async Task<AttendanceResponseDTO> MarkAttendanceAsync(
+        int actorId,
+        MarkAttendanceDTO request,
+        CancellationToken ct = default)
     {
-        public async Task<AttendanceResponseDTO> MarkAttendanceAsync(MarkAttendanceDTO request)
+        if (request.MemberId <= 0 || request.SessionId <= 0)
         {
-            var session = await context.ClassSessions
-                .Include(s => s.Class)
-                .FirstOrDefaultAsync(s => s.Id == request.SessionId)
-                ?? throw new ArgumentException($"Class session with ID {request.SessionId} not found.");
+            throw new BusinessException(
+                400, "MemberId và SessionId phải lớn hơn 0.");
+        }
 
-            var isRegistered = await context.ClassRegistrations
-                .AnyAsync(r => r.MemberId == request.MemberId && r.ClassId == session.ClassId && r.Status != "Cancelled");
+        bool validStatus =
+            request.Status == "Present" ||
+            request.Status == "Absent" ||
+            request.Status == "Late" ||
+            request.Status == "Excused";
 
-            if (!isRegistered)
-                throw new ArgumentException("Member is not registerd for this class");
+        if (!validStatus)
+        {
+            throw new BusinessException(
+                400,
+                "Status phải là Present, Absent, Late hoặc Excused.");
+        }
 
-            var existingAttendance = await context.Attendances
-                .FirstOrDefaultAsync(a => a.MemberId == request.MemberId && a.SessionId == request.SessionId);
+        // Kiểm tra người thao tác có phải HLV phụ trách không.
+        var session = await GetSessionForActorAsync(
+            actorId,
+            request.SessionId,
+            allowDesk: false);
 
-            if (existingAttendance != null)
+        if (session.Status == "Cancelled")
+        {
+            throw new BusinessException(
+                409, "Không được điểm danh buổi học đã hủy.");
+        }
+
+        // Kiểm tra theo SessionId, tránh điểm danh nhầm buổi cùng lớp.
+        var registration = await context.ClassRegistrations
+            .Include(r => r.Member)
+                .ThenInclude(m => m.User)
+            .SingleOrDefaultAsync(r =>
+                r.MemberId == request.MemberId &&
+                r.SessionId == request.SessionId &&
+                r.ClassId == session.ClassId &&
+                r.Status != "Cancelled");
+
+        if (registration == null)
+        {
+            throw new BusinessException(
+                409,
+                "Hội viên chưa đăng ký buổi học này hoặc đã hủy đăng ký.");
+        }
+
+        var attendance = await context.Attendances
+            .SingleOrDefaultAsync(a =>
+                a.MemberId == request.MemberId &&
+                a.SessionId == request.SessionId);
+
+        if (attendance == null)
+        {
+            // Chưa có thì tạo điểm danh mới.
+            attendance = new Attendance
             {
-                existingAttendance.Status = request.Status;
-                existingAttendance.CheckInTime = DateTime.UtcNow;
-                await context.SaveChangesAsync();
-                return MapToDTO(existingAttendance);
-            }
-
-            var attendance = new Attendance
-            {
-                MemberId = request.MemberId,
+                MemberId = registration.MemberId,
+                Member = registration.Member,
                 ClassId = session.ClassId,
-                SessionId = request.SessionId,
+                SessionId = session.Id,
                 Status = request.Status,
                 CheckInTime = DateTime.UtcNow
             };
 
             context.Attendances.Add(attendance);
-            await context.SaveChangesAsync();
-
-            return MapToDTO(attendance);
+        }
+        else
+        {
+            // Đã có thì sửa trạng thái, giữ thời gian ghi nhận ban đầu.
+            attendance.Status = request.Status;
+            attendance.Member = registration.Member;
         }
 
-        public async Task<IEnumerable<AttendanceResponseDTO>> GetSessionAttendancesAsync(int sessionId)
-        {
-            var attendances = await context.Attendances
-                .Include(a => a.Member)
+        await context.SaveChangesAsync();
+
+        return MapToDTO(attendance);
+    }
+
+    /// <summary>
+    /// Xem điểm danh theo buổi học.
+    /// HLV chỉ xem buổi mình phụ trách.
+    /// Lễ tân và Manager được xem danh sách.
+    /// </summary>
+    public async Task<IEnumerable<AttendanceResponseDTO>>
+        GetSessionAttendancesAsync(int actorId, int sessionId, CancellationToken ct = default)
+    {
+        await GetSessionForActorAsync(
+            actorId,
+            sessionId,
+            allowDesk: true);
+
+        var attendances = await context.Attendances
+            .AsNoTracking()
+            .Include(a => a.Member)
                 .ThenInclude(m => m.User)
-                .Where(a => a.SessionId == sessionId)
-                .ToListAsync();
-            return attendances.Select(MapToDTO);
+            .Where(a => a.SessionId == sessionId)
+            .OrderBy(a => a.Member.User.FullName)
+            .ThenBy(a => a.Id)
+            .ToListAsync();
+
+        return attendances.Select(MapToDTO).ToList();
+    }
+
+    // Kiểm tra tài khoản và quyền trên một buổi học.
+    private async Task<ClassSession> GetSessionForActorAsync(
+        int actorId,
+        int sessionId,
+        bool allowDesk)
+    {
+        var actor = await context.Users
+            .AsNoTracking()
+            .SingleOrDefaultAsync(u =>
+                u.Id == actorId && u.IsActive);
+
+        if (actor == null)
+        {
+            throw new BusinessException(
+                401, "Tài khoản không hoạt động. Vui lòng đăng nhập lại.");
         }
 
-        private AttendanceResponseDTO MapToDTO(Attendance attendance)
+        var session = await context.ClassSessions
+            .AsNoTracking()
+            .Include(s => s.Coach)
+            .SingleOrDefaultAsync(s => s.Id == sessionId);
+
+        if (session == null)
         {
-            return new AttendanceResponseDTO
-            {
-                Id = attendance.Id,
-                MemberId = attendance.MemberId,
-                MemberName = attendance.Member.User.FullName,
-                CheckInTime = attendance.CheckInTime,
-                Status = attendance.Status,
-                SessionId = attendance.SessionId
-            };
+            throw new BusinessException(
+                404, "Không tìm thấy buổi học.");
         }
+
+        bool isAssignedCoach =
+            actor.Role == UserRoles.Coach &&
+            session.Coach.UserId == actorId;
+
+        bool isDesk =
+            actor.Role == UserRoles.Receptionist ||
+            actor.Role == UserRoles.Manager;
+
+        bool hasPermission =
+            isAssignedCoach || (allowDesk && isDesk);
+
+        if (!hasPermission)
+        {
+            throw new BusinessException(
+                403, "Bạn không có quyền thao tác điểm danh buổi học này.");
+        }
+
+        return session;
+    }
+
+    private static AttendanceResponseDTO MapToDTO(
+        Attendance attendance)
+    {
+        return new AttendanceResponseDTO
+        {
+            Id = attendance.Id,
+            MemberId = attendance.MemberId,
+            MemberName = attendance.Member.User.FullName,
+            CheckInTime = attendance.CheckInTime,
+            Status = attendance.Status,
+            SessionId = attendance.SessionId
+        };
     }
 }

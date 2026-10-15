@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
+using SportsCenterAPI.Helpers;
 using SportsCenterAPI.Data;
 using SportsCenterAPI.DTOs.Accounts;
 using SportsCenterAPI.DTOs.Auth;
@@ -101,9 +102,11 @@ public class AuthService(
             TimeSpan.FromMinutes(5));
 
         await emailService.SendEmailAsync(
-            email,
-            "Sports Center registration OTP",
-            $"Your registration OTP is {otp}. It expires in 5 minutes.");
+    email,
+    "Sports Center | Xác nhận đăng ký",
+    $"Mã xác nhận đăng ký của bạn là {otp}. " +
+    "Mã có hiệu lực trong 5 phút. Không chia sẻ mã với bất kỳ ai.",
+    OtpEmailTemplate.Create(otp, resetPassword: false));
     }
 
     public async Task<AuthResponse> VerifyRegisterOtpAsync(
@@ -161,9 +164,12 @@ public class AuthService(
             TimeSpan.FromMinutes(5));
 
         await emailService.SendEmailAsync(
-            email,
-            "Sports Center password reset OTP",
-            $"Your password reset OTP is {otp}. It expires in 5 minutes.");
+           email,
+           "Sports Center | Đặt lại mật khẩu",
+           $"Mã đặt lại mật khẩu của bạn là {otp}. " +
+           "Mã có hiệu lực trong 5 phút. " +
+           "Nếu không yêu cầu đặt lại mật khẩu, hãy bỏ qua email này.",
+           OtpEmailTemplate.Create(otp, resetPassword: true));
     }
 
     public async Task VerifyResetPasswordOtpAsync(

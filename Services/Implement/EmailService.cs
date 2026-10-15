@@ -16,7 +16,11 @@ public class EmailService : IEmailService
         _mailSettings = mailSettings.Value;
     }
 
-    public async Task SendEmailAsync(string to, string subject, string body)
+    public async Task SendEmailAsync(
+        string to,
+        string subject,
+        string body,
+        string? htmlBody = null)
     {
         var email = new MimeMessage();
 
@@ -26,7 +30,13 @@ public class EmailService : IEmailService
 
         email.To.Add(MailboxAddress.Parse(to));
         email.Subject = subject;
-        email.Body = new BodyBuilder { TextBody = body }.ToMessageBody();
+
+        // HTML để hiển thị đẹp, chữ thuần dùng làm bản dự phòng.
+        email.Body = new BodyBuilder
+        {
+            TextBody = body,
+            HtmlBody = htmlBody
+        }.ToMessageBody();
 
         using var smtp = new SmtpClient();
 

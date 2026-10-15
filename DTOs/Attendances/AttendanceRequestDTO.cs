@@ -10,7 +10,7 @@ namespace SportsCenterAPI.DTOs.Attendances
         [Required]
         public int SessionId { get; set; }
         [Required]
-        [RegularExpression("^(Present|Absent|Excused)$", ErrorMessage = "Status must be Present, Absent, or Excused")]
+        [RegularExpression("^(Present|Absent|Late|Excused)$",ErrorMessage = "Status phải là Present, Absent, Late hoặc Excused.")]
         public string Status { get; set; } = "Present";
     }
 
