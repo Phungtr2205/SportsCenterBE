@@ -1,10 +1,10 @@
-﻿using SportsCenterAPI.DTOs.Attendances;
+﻿using SportsCenterAPI.DTOs.Attendances; 
 
-namespace SportsCenterAPI.Services.Interface;
-
-public interface IAttendanceService
+namespace SportsCenterAPI.Services.Interface
 {
-    Task<AttendanceResponseDTO> MarkAttendanceAsync(int actorId,MarkAttendanceDTO request,CancellationToken ct = default);
-
-    Task<IEnumerable<AttendanceResponseDTO>> GetSessionAttendancesAsync(int actorId, int sessionId, CancellationToken ct = default);
+    public interface IAttendanceService
+    {
+        Task<AttendanceResponseDTO> MarkAttendanceAsync(MarkAttendanceDTO request);
+        Task<IEnumerable<AttendanceResponseDTO>> GetSessionAttendancesAsync(int sessionId);
+    }
 }
