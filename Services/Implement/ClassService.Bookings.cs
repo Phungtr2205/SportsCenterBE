@@ -443,10 +443,11 @@ public partial class ClassService
                     "Chỉ đánh giá buổi đã hoàn thành và có điểm danh tham gia.");
             }
 
+            // Người tham gia đúng giờ hoặc đi muộn đều được đánh giá.
             bool wasPresent = await db.Attendances.AnyAsync(
                 a => a.SessionId == registration.SessionId &&
                      a.MemberId == registration.MemberId &&
-                     a.Status == "Present",
+                     (a.Status == "Present" || a.Status == "Late"),
                 ct);
 
             if (!wasPresent)

@@ -151,10 +151,10 @@ public class PaymentService : IPaymentService
             }
             else
             {
-                // SQL sequence sinh mã duy nhất, kể cả khi có nhiều request.
+                // PostgreSQL sinh mã đơn duy nhất bằng sequence.
                 var orderCodes = await _context.Database
                     .SqlQueryRaw<long>(
-                        "SELECT NEXT VALUE FOR dbo.PayOSOrderNumbers AS [Value]")
+                        "SELECT nextval('public.\"PayOSOrderNumbers\"') AS \"Value\"")
                     .ToListAsync();
 
                 var now = DateTime.UtcNow;
@@ -190,7 +190,7 @@ public class PaymentService : IPaymentService
             await transaction.CommitAsync();
         }
 
-        // Không giữ transaction database trong lúc gọi API bên ngoài.
+        // Gọi payOS sau khi đã lưu yêu cầu vào database.
         try
         {
             if (string.IsNullOrWhiteSpace(payment.PayOSPaymentLinkId))
@@ -198,10 +198,14 @@ public class PaymentService : IPaymentService
                 await _payOSService.CreatePaymentLinkDetailsAsync(payment);
             }
         }
-        catch (PayOSException)
+        catch (PayOSException ex)
         {
-            // Có thể payOS đã tạo link nhưng response bị mất.
-            // Tra cứu lại đúng mã đơn đã lưu, không sinh đơn mới.
+            // Ghi lỗi gốc để biết tại sao payOS không tạo được link.
+            System.Diagnostics.Debug.WriteLine(
+                $"Lỗi tạo link payOS, mã đơn {payment.PayOSOrderCode}: " +
+                ex.Message);
+
+            // Đối chiếu lại cùng mã đơn, tránh tạo thanh toán trùng.
             var recovered = await RefreshPaymentAsync(payment, actorId);
 
             return ApiResponse<PaymentDTO>.Ok(
