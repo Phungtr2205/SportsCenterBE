@@ -1,8 +1,6 @@
-﻿using SportsCenterAPI.DTOs.Attendances;
+﻿using SportsCenterAPI.DTOs.Attendances; 
 
-namespace SportsCenterAPI.Services.Interface;
-
-public interface IAttendanceService
+namespace SportsCenterAPI.Services.Interface
 {
     Task<AttendanceResponseDTO> MarkAttendanceAsync(
         int actorId,
