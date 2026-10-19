@@ -76,24 +76,49 @@ public partial class ClassService
             if (request.StartsAt.UtcDateTime < course.StartDate || request.EndsAt.UtcDateTime > course.EndDate)
                 throw new BusinessException(400, "Buổi học phải nằm trong khoảng thời gian của lớp.");
             await ActiveCoach(request.CoachId, ct);
-            if (!await db.CancellationPolicies.AnyAsync(p => p.Id == request.CancellationPolicyId && p.IsActive, ct))
-                throw new BusinessException(404, "Không tìm thấy chính sách hủy đang hoạt động.");
+            var policy = await db.CancellationPolicies.SingleOrDefaultAsync(p => p.Id == request.CancellationPolicyId && p.IsActive, ct)
+                ?? throw new BusinessException(404, "Không tìm thấy chính sách hủy đang hoạt động.");
             var item = id.HasValue ? await db.ClassSessions.SingleOrDefaultAsync(s => s.Id == id && s.ClassId == classId, ct)
                 ?? throw new BusinessException(404, "Không tìm thấy buổi học của lớp.") : new ClassSession { ClassId = classId };
             if (item.Status != "Scheduled" || (id.HasValue && item.StartsAt <= Now))
                 throw new BusinessException(409, "Không sửa buổi học đã bắt đầu, hủy hoặc hoàn thành.");
             var enrolled = id.HasValue ? await db.ClassRegistrations.CountAsync(r => r.SessionId == id && r.Status != "Cancelled", ct) : 0;
             if (request.Capacity < enrolled) throw new BusinessException(409, "Số chỗ không thể thấp hơn số học viên đã đăng ký.");
-            if (enrolled > 0 && (item.StartsAt != request.StartsAt.UtcDateTime || item.EndsAt != request.EndsAt.UtcDateTime ||
-                item.CoachId != request.CoachId || item.CancellationPolicyId != request.CancellationPolicyId))
-                throw new BusinessException(409, "Buổi đã có học viên chỉ được điều chỉnh sức chứa. Hủy và tạo buổi mới nếu cần đổi lịch/HLV/chính sách.");
             if (await db.ClassSessions.AnyAsync(s => s.Id != (id ?? 0) && s.Status == "Scheduled" &&
                 s.CoachId == request.CoachId && s.StartsAt < request.EndsAt.UtcDateTime && s.EndsAt > request.StartsAt.UtcDateTime, ct))
                 throw new BusinessException(409, "HLV đã có buổi học khác trùng giờ.");
+
+            bool scheduleOrCoachChanged = id.HasValue && enrolled > 0 && (
+                item.StartsAt != request.StartsAt.UtcDateTime ||
+                item.EndsAt != request.EndsAt.UtcDateTime ||
+                item.CoachId != request.CoachId ||
+                item.CancellationPolicyId != request.CancellationPolicyId);
+
             item.CoachId = request.CoachId; item.CancellationPolicyId = request.CancellationPolicyId;
             item.StartsAt = request.StartsAt.UtcDateTime; item.EndsAt = request.EndsAt.UtcDateTime; item.Capacity = request.Capacity;
             if (!id.HasValue) db.ClassSessions.Add(item);
             await db.SaveChangesAsync(ct);
+
+            if (scheduleOrCoachChanged)
+            {
+                var activeRegs = await db.ClassRegistrations
+                    .Include(r => r.Member)
+                    .Where(r => r.SessionId == item.Id && r.Status == "Registered")
+                    .ToListAsync(ct);
+
+                foreach (var reg in activeRegs)
+                {
+                    reg.CancellationDeadline = item.StartsAt.AddHours(-policy.MinimumHoursBeforeStart);
+                    db.Notifications.Add(new Notification
+                    {
+                        UserId = reg.Member.UserId,
+                        Title = "Cập nhật lịch buổi học",
+                        Content = $"Buổi #{item.Id} - {course.ClassName} đã được cập nhật lịch học sang {item.StartsAt:dd/MM/yyyy HH:mm} (UTC). Vui lòng kiểm tra lại lịch của bạn.",
+                        SentAt = Now
+                    });
+                }
+            }
+
             Audit(actorId, nameof(ClassSession), item.Id, id.HasValue ? "Updated session" : "Created session");
             return item.Id;
         }, ct);
