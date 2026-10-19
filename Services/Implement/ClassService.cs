@@ -317,8 +317,9 @@ public partial class ClassService : IClassService
         );
 
     // Chọn các trường của đăng ký lớp.
-    private static readonly Expression<Func<ClassRegistration, RegistrationDTO>>
-        RegistrationProjection = r => new RegistrationDTO(
+    // Chọn các trường của đăng ký lớp (kèm kết quả điểm danh và đánh giá).
+    private Expression<Func<ClassRegistration, RegistrationDTO>>
+        RegistrationProjection => r => new RegistrationDTO(
             r.Id,
             r.MemberId,
             r.ClassId,
@@ -332,7 +333,25 @@ public partial class ClassService : IClassService
             r.CancellationDeadline,
             r.CancelledAt,
             r.CancelledByUserId,
-            r.CancellationReason
+            r.CancellationReason,
+            r.Session == null ? null : r.Session.Status,
+            db.Attendances
+                .Where(a => a.SessionId == r.SessionId && a.MemberId == r.MemberId)
+                .Select(a => a.Status)
+                .FirstOrDefault(),
+            db.Attendances
+                .Where(a => a.SessionId == r.SessionId && a.MemberId == r.MemberId && (a.Status == "Present" || a.Status == "Late"))
+                .Select(a => (DateTime?)a.CheckInTime)
+                .FirstOrDefault(),
+            db.ClassReviews.Any(rv => rv.RegistrationId == r.Id),
+            db.ClassReviews
+                .Where(rv => rv.RegistrationId == r.Id)
+                .Select(rv => (int?)rv.Rating)
+                .FirstOrDefault(),
+            db.ClassReviews
+                .Where(rv => rv.RegistrationId == r.Id)
+                .Select(rv => new ReviewDTO(rv.Id, rv.RegistrationId, rv.Rating, rv.Comment, rv.CreatedAt))
+                .FirstOrDefault()
         );
 
     private async Task<RegistrationDTO> RegistrationResult(

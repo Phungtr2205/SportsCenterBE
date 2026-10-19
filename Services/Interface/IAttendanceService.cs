@@ -13,5 +13,9 @@ namespace SportsCenterAPI.Services.Interface
             int actorId,
             int sessionId,
             CancellationToken ct = default);
+
+        Task<IEnumerable<AttendanceResponseDTO>> GetMyAttendancesAsync(
+            int actorId,
+            CancellationToken ct = default);
     }
 }
