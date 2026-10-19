@@ -11,8 +11,15 @@ namespace SportsCenterAPI.Controllers;
 [Authorize]
 public class TrainingPlansController(ITrainingPlanService trainingService) : BaseApiController
 {
+    [HttpGet("exercises")]
+    public async Task<IActionResult> GetExercisesCatalog()
+    {
+        var result = await trainingService.GetExercisesCatalogAsync();
+        return Ok(new { success = true, data = result });
+    }
+
     [HttpPost]
-    [Authorize(Roles = UserRoles.Coach)] // ĐÚNG YÊU CẦU: Chỉ Coach mới được tạo
+    [Authorize(Roles = UserRoles.Coach)]
     public async Task<IActionResult> CreatePlan([FromBody] CreateTrainingPlanDTO request)
     {
         try
@@ -27,7 +34,7 @@ public class TrainingPlansController(ITrainingPlanService trainingService) : Bas
     }
 
     [HttpGet("members/{memberId}")]
-    [Authorize(Roles = UserRoles.Coach + "," + UserRoles.Member)]
+    [Authorize(Roles = UserRoles.Coach + "," + UserRoles.Member + "," + UserRoles.FrontDesk)]
     public async Task<IActionResult> GetMemberPlans(int memberId)
     {
         var result = await trainingService.GetMemberPlansAsync(memberId);
@@ -42,6 +49,21 @@ public class TrainingPlansController(ITrainingPlanService trainingService) : Bas
         {
             await trainingService.UpdateExerciseResultAsync(ActorId(), planExerciseId, request);
             return Ok(new { success = true, message = "Cập nhật tiến độ tập luyện thành công!" });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { success = false, message = ex.Message });
+        }
+    }
+
+    [HttpPut("{id:int}/status")]
+    [Authorize(Roles = UserRoles.Coach)]
+    public async Task<IActionResult> UpdateStatus(int id, [FromQuery] string status = "Completed")
+    {
+        try
+        {
+            await trainingService.UpdatePlanStatusAsync(ActorId(), id, status);
+            return Ok(new { success = true, message = "Đã cập nhật trạng thái giáo án." });
         }
         catch (Exception ex)
         {

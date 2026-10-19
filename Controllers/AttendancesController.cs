@@ -12,19 +12,16 @@ namespace SportsCenterAPI.Controllers;
 public class AttendancesController(
     IAttendanceService attendanceService) : BaseApiController
 {
-    /// <summary>
-    /// Ghi kết quả điểm danh.
-    /// Chỉ Coach được gọi; service sẽ kiểm tra HLV phụ trách.
-    /// ID người thao tác lấy từ JWT.
-    /// </summary>
     [HttpPost("mark")]
-    [Authorize(Roles = UserRoles.Coach)]
+    [Authorize(Roles = UserRoles.FrontDesk + "," + UserRoles.Coach)]
     public async Task<IActionResult> MarkAttendance(
-        [FromBody] MarkAttendanceDTO request)
+        [FromBody] MarkAttendanceDTO request,
+        CancellationToken ct)
     {
         var result = await attendanceService.MarkAttendanceAsync(
             ActorId(),
-            request);
+            request,
+            ct);
 
         return Ok(new
         {
@@ -33,23 +30,36 @@ public class AttendancesController(
         });
     }
 
-    /// <summary>
-    /// Xem kết quả điểm danh của một buổi học.
-    /// Dành cho HLV phụ trách, lễ tân và Manager.
-    /// Service sẽ kiểm tra quyền trên buổi học.
-    /// </summary>
     [HttpGet("session/{sessionId:int}")]
     [Authorize(Roles = UserRoles.FrontDesk + "," + UserRoles.Coach)]
     public async Task<IActionResult> GetSessionAttendances(
-        int sessionId)
+        int sessionId,
+        CancellationToken ct)
     {
         var result = await attendanceService.GetSessionAttendancesAsync(
             ActorId(),
-            sessionId);
+            sessionId,
+            ct);
 
         return Ok(new
         {
             message = "Lấy danh sách điểm danh thành công",
+            data = result
+        });
+    }
+
+    [HttpGet("mine")]
+    [Authorize(Roles = UserRoles.Member)]
+    public async Task<IActionResult> GetMyAttendances(
+        CancellationToken ct)
+    {
+        var result = await attendanceService.GetMyAttendancesAsync(
+            ActorId(),
+            ct);
+
+        return Ok(new
+        {
+            message = "Lấy kết quả điểm danh của hội viên thành công",
             data = result
         });
     }
