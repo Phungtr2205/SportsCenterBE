@@ -62,7 +62,9 @@ public record SessionDTO(int Id, int ClassId, string ClassName, int CoachId, str
     string Status, int CancellationPolicyId, int MinimumHoursBeforeStart);
 public record RegistrationDTO(int Id, int MemberId, int ClassId, int? SessionId, string ClassName,
     DateTime? StartsAt, DateTime? EndsAt, string Status, DateTime RegistrationDate,
-    int? CreatedByUserId, DateTime? CancellationDeadline, DateTime? CancelledAt, int? CancelledByUserId, string? CancellationReason);
+    int? CreatedByUserId, DateTime? CancellationDeadline, DateTime? CancelledAt, int? CancelledByUserId, string? CancellationReason,
+    string? SessionStatus = null, string? AttendanceStatus = null, DateTime? CheckInTime = null,
+    bool HasReviewed = false, int? Rating = null, ReviewDTO? Review = null);
 public record RosterDTO(int RegistrationId, int MemberId, string FullName, string RegistrationStatus, string? AttendanceStatus, DateTime? CheckInTime);
 public record AttendanceDTO(int Id, int MemberId, int? SessionId, DateTime CheckInTime, string Status);
 public record ReviewDTO(int Id, int RegistrationId, int Rating, string? Comment, DateTime CreatedAt);

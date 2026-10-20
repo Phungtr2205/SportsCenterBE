@@ -1,4 +1,4 @@
-﻿using SportsCenterAPI.DTOs.Attendances; 
+﻿using SportsCenterAPI.DTOs.Attendances;
 
 namespace SportsCenterAPI.Services.Interface
 {

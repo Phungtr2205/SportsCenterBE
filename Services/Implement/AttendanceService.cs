@@ -9,11 +9,6 @@ namespace SportsCenterAPI.Services.Implement;
 
 public class AttendanceService(AppDbContext context) : IAttendanceService
 {
-    /// <summary>
-    /// Tạo hoặc cập nhật điểm danh.
-    /// Chỉ HLV phụ trách buổi học được thực hiện.
-    /// Hội viên phải đăng ký đúng buổi và chưa hủy.
-    /// </summary>
     public async Task<AttendanceResponseDTO> MarkAttendanceAsync(
         int actorId,
         MarkAttendanceDTO request,
@@ -38,11 +33,10 @@ public class AttendanceService(AppDbContext context) : IAttendanceService
                 "Status phải là Present, Absent, Late hoặc Excused.");
         }
 
-        // Kiểm tra người thao tác có phải HLV phụ trách không.
         var session = await GetSessionForActorAsync(
             actorId,
             request.SessionId,
-            allowDesk: false);
+            allowDesk: true);
 
         if (session.Status == "Cancelled")
         {
@@ -50,15 +44,15 @@ public class AttendanceService(AppDbContext context) : IAttendanceService
                 409, "Không được điểm danh buổi học đã hủy.");
         }
 
-        // Kiểm tra theo SessionId, tránh điểm danh nhầm buổi cùng lớp.
         var registration = await context.ClassRegistrations
             .Include(r => r.Member)
                 .ThenInclude(m => m.User)
+            .Include(r => r.Class)
             .SingleOrDefaultAsync(r =>
                 r.MemberId == request.MemberId &&
                 r.SessionId == request.SessionId &&
                 r.ClassId == session.ClassId &&
-                r.Status != "Cancelled");
+                r.Status != "Cancelled", ct);
 
         if (registration == null)
         {
@@ -70,11 +64,10 @@ public class AttendanceService(AppDbContext context) : IAttendanceService
         var attendance = await context.Attendances
             .SingleOrDefaultAsync(a =>
                 a.MemberId == request.MemberId &&
-                a.SessionId == request.SessionId);
+                a.SessionId == request.SessionId, ct);
 
         if (attendance == null)
         {
-            // Chưa có thì tạo điểm danh mới.
             attendance = new Attendance
             {
                 MemberId = registration.MemberId,
@@ -89,21 +82,33 @@ public class AttendanceService(AppDbContext context) : IAttendanceService
         }
         else
         {
-            // Đã có thì sửa trạng thái, giữ thời gian ghi nhận ban đầu.
             attendance.Status = request.Status;
+            attendance.CheckInTime = DateTime.UtcNow;
             attendance.Member = registration.Member;
         }
 
-        await context.SaveChangesAsync();
+        string statusLabel = request.Status switch
+        {
+            "Present" => "Có mặt",
+            "Late" => "Đi trễ",
+            "Absent" => "Vắng mặt",
+            "Excused" => "Có phép",
+            _ => request.Status
+        };
+
+        context.Notifications.Add(new Notification
+        {
+            UserId = registration.Member.UserId,
+            Title = "Cập nhật điểm danh buổi học",
+            Content = $"Buổi #{session.Id} - {registration.Class.ClassName} đã được cập nhật điểm danh: {statusLabel}.",
+            SentAt = DateTime.UtcNow
+        });
+
+        await context.SaveChangesAsync(ct);
 
         return MapToDTO(attendance);
     }
 
-    /// <summary>
-    /// Xem điểm danh theo buổi học.
-    /// HLV chỉ xem buổi mình phụ trách.
-    /// Lễ tân và Manager được xem danh sách.
-    /// </summary>
     public async Task<IEnumerable<AttendanceResponseDTO>>
         GetSessionAttendancesAsync(int actorId, int sessionId, CancellationToken ct = default)
     {
@@ -119,12 +124,32 @@ public class AttendanceService(AppDbContext context) : IAttendanceService
             .Where(a => a.SessionId == sessionId)
             .OrderBy(a => a.Member.User.FullName)
             .ThenBy(a => a.Id)
-            .ToListAsync();
+            .ToListAsync(ct);
 
         return attendances.Select(MapToDTO).ToList();
     }
 
-    // Kiểm tra tài khoản và quyền trên một buổi học.
+    public async Task<IEnumerable<AttendanceResponseDTO>>
+        GetMyAttendancesAsync(int actorId, CancellationToken ct = default)
+    {
+        var member = await context.Members
+            .AsNoTracking()
+            .Include(m => m.User)
+            .SingleOrDefaultAsync(m => m.UserId == actorId, ct)
+            ?? throw new BusinessException(404, "Không tìm thấy hội viên.");
+
+        var attendances = await context.Attendances
+            .AsNoTracking()
+            .Include(a => a.Member)
+                .ThenInclude(m => m.User)
+            .Where(a => a.MemberId == member.Id)
+            .OrderByDescending(a => a.CheckInTime)
+            .ThenByDescending(a => a.Id)
+            .ToListAsync(ct);
+
+        return attendances.Select(MapToDTO).ToList();
+    }
+
     private async Task<ClassSession> GetSessionForActorAsync(
         int actorId,
         int sessionId,
