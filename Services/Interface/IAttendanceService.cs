@@ -6,10 +6,16 @@ namespace SportsCenterAPI.Services.Interface
     {
         Task<AttendanceResponseDTO> MarkAttendanceAsync(
             int actorId,
-            MarkAttendanceDTO request, CancellationToken ct = default);
+            MarkAttendanceDTO request,
+            CancellationToken ct = default);
 
         Task<IEnumerable<AttendanceResponseDTO>> GetSessionAttendancesAsync(
             int actorId,
-            int sessionId, CancellationToken ct = default);
+            int sessionId,
+            CancellationToken ct = default);
+
+        Task<IEnumerable<AttendanceResponseDTO>> GetMyAttendancesAsync(
+            int actorId,
+            CancellationToken ct = default);
     }
 }
