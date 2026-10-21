@@ -154,6 +154,7 @@ builder.Services.AddMemoryCache();
 builder.Services.AddScoped<IClassCatalogService, ClassCatalogService>();
 builder.Services.AddScoped<ITrainingPlanService, TrainingPlanService>();
 builder.Services.AddScoped<IReportService, ReportService>();
+builder.Services.AddScoped<IExerciseService, ExerciseService>();
 
 
 // Đọc cấu hình từ mục "PayOS" trong appsettings.json.
@@ -176,6 +177,8 @@ builder.Services.AddScoped<IGymCheckInService, GymCheckInService>();
 
 // Room Service
 builder.Services.AddScoped<IRoomService, RoomService>();
+
+// Exercise Service
 
 var app = builder.Build();
 
