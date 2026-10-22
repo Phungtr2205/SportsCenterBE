@@ -400,7 +400,8 @@ public partial class ClassService : IClassService
 
             s.Status,
             s.CancellationPolicyId,
-            s.CancellationPolicy.MinimumHoursBeforeStart
+            s.CancellationPolicy.MinimumHoursBeforeStart,
+            s.CancellationReason
         ));
     }
 
