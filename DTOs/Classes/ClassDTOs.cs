@@ -59,7 +59,7 @@ public record ClassDTO(int Id, string ClassName, int SportId, string SportName, 
     string? CoachName, decimal Price, int MaxCapacity, string? Schedule, DateTime StartDate, DateTime EndDate, bool IsActive);
 public record SessionDTO(int Id, int ClassId, string ClassName, int CoachId, string CoachName,
     DateTime StartsAt, DateTime EndsAt, int Capacity, int CurrentEnrollment, int AvailableSeats,
-    string Status, int CancellationPolicyId, int MinimumHoursBeforeStart);
+    string Status, int CancellationPolicyId, int MinimumHoursBeforeStart, string? CancellationReason);
 public record RegistrationDTO(int Id, int MemberId, int ClassId, int? SessionId, string ClassName,
     DateTime? StartsAt, DateTime? EndsAt, string Status, DateTime RegistrationDate,
     int? CreatedByUserId, DateTime? CancellationDeadline, DateTime? CancelledAt, int? CancelledByUserId, string? CancellationReason,
