@@ -1,0 +1,30 @@
+services:
+  api:
+    build: .
+    ports:
+      - "127.0.0.1:8080:8080"
+    env_file:
+      - .env
+    environment:
+      PORT: "8080"
+      ASPNETCORE_ENVIRONMENT: Production
+      OpenApi__Enabled: "true"
+      ConnectionStrings__Redis: "redis:6379,password=${REDIS_PASSWORD:?Set REDIS_PASSWORD in .env},abortConnect=false"
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  redis:
+    image: redis:7.4-alpine
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:6379:6379"
+    environment:
+      REDISCLI_AUTH: "${REDIS_PASSWORD:?Set REDIS_PASSWORD in .env}"
+    command: ["sh", "-c", "exec redis-server --save '' --appendonly no --requirepass \"$$REDISCLI_AUTH\""]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    # Chỉ máy local truy cập được cổng này để chạy API bằng Visual Studio.

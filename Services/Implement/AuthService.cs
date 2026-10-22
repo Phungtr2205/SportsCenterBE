@@ -1,12 +1,10 @@
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Caching.Memory;
 using SportsCenterAPI.Helpers;
 using SportsCenterAPI.Data;
 using SportsCenterAPI.DTOs.Accounts;
 using SportsCenterAPI.DTOs.Auth;
 using SportsCenterAPI.DTOs.Login;
 using SportsCenterAPI.DTOs.Register;
-using SportsCenterAPI.Helpers;
 using SportsCenterAPI.Models;
 using SportsCenterAPI.Services.Interface;
 using System.Security.Cryptography;
@@ -17,20 +15,13 @@ namespace SportsCenterAPI.Services.Implement;
 public class AuthService(
     AppDbContext context,
     IConfiguration configuration,
-    IMemoryCache cache,
+    RedisOtpStore otpStore,
     IEmailService emailService) : IAuthService
 {
     private sealed class PendingRegistration
     {
         public required RegisterRequestDTO Request { get; init; }
-        public required string OtpHash { get; init; }
-        public int Attempts { get; set; }
-    }
-
-    private sealed class PendingPasswordReset
-    {
-        public required string OtpHash { get; init; }
-        public int Attempts { get; set; }
+        public required string PasswordHash { get; init; }
     }
 
     public async Task<AuthResponse> LoginAsync(LoginRequestDTO request)
@@ -92,14 +83,24 @@ public class AuthService(
 
         var otp = GenerateOtp();
 
-        cache.Set(
-            RegistrationKey(email),
-            new PendingRegistration
+        // Chỉ lưu mật khẩu đã băm; dữ liệu đăng ký không giữ Password gốc.
+        var pending = new PendingRegistration
+        {
+            Request = new RegisterRequestDTO
             {
-                Request = request,
-                OtpHash = HashOtp(otp)
+                Email = email,
+                FullName = request.FullName,
+                Phone = request.Phone,
+                DateOfBirth = request.DateOfBirth,
+                Gender = request.Gender,
+                Address = request.Address,
+                FitnessGoal = request.FitnessGoal
             },
-            TimeSpan.FromMinutes(5));
+            PasswordHash = PasswordHelper.HashPassword(request.Password)
+        };
+
+        await otpStore.SaveAsync(
+            RegistrationKey(email), HashOtp(otp), pending);
 
         await emailService.SendEmailAsync(
     email,
@@ -115,30 +116,15 @@ public class AuthService(
         var email = NormalizeEmail(request.Email);
         var key = RegistrationKey(email);
 
-        if (!cache.TryGetValue(key, out PendingRegistration? pending) ||
-            pending is null)
-        {
-            throw InvalidOtpException();
-        }
+        // Redis kiểm tra số lần sai và xóa OTP đúng trong cùng một thao tác.
+        var pending = await otpStore.ConsumeAsync<PendingRegistration>(
+            key, HashOtp(request.Otp))
+            ?? throw InvalidOtpException();
 
-        if (pending.Attempts >= 5)
-        {
-            cache.Remove(key);
-            throw InvalidOtpException();
-        }
+        // Nếu database lỗi sau khi mã đã được dùng, yêu cầu gửi OTP mới.
+        var user = await CreateMemberAccountAsync(
+            pending.Request, pending.PasswordHash);
 
-        pending.Attempts++;
-
-        if (!MatchesOtp(request.Otp, pending.OtpHash))
-        {
-            throw InvalidOtpException();
-        }
-
-        // Chỉ tạo tài khoản sau khi xác nhận OTP.
-        // Hàm này kiểm tra lại email trùng trước khi lưu.
-        var user = await CreateMemberAccountAsync(pending.Request);
-
-        cache.Remove(key);
         return await CreateAuthResponseAsync(user);
     }
 
@@ -155,13 +141,8 @@ public class AuthService(
 
         var otp = GenerateOtp();
 
-        cache.Set(
-            ResetPasswordKey(email),
-            new PendingPasswordReset
-            {
-                OtpHash = HashOtp(otp)
-            },
-            TimeSpan.FromMinutes(5));
+        await otpStore.SaveAsync(
+            ResetPasswordKey(email), HashOtp(otp), email);
 
         await emailService.SendEmailAsync(
            email,
@@ -185,24 +166,10 @@ public class AuthService(
         var email = NormalizeEmail(request.Email);
         var key = ResetPasswordKey(email);
 
-        if (!cache.TryGetValue(key, out PendingPasswordReset? pending) ||
-            pending is null)
-        {
+        var storedEmail = await otpStore.ConsumeAsync<string>(
+            key, HashOtp(request.Otp));
+        if (storedEmail != email)
             throw InvalidOtpException();
-        }
-
-        if (pending.Attempts >= 5)
-        {
-            cache.Remove(key);
-            throw InvalidOtpException();
-        }
-
-        pending.Attempts++;
-
-        if (!MatchesOtp(request.Otp, pending.OtpHash))
-        {
-            throw InvalidOtpException();
-        }
 
         var user = await context.Users.FirstOrDefaultAsync(
             u => u.Email.ToLower() == email && u.IsActive);
@@ -221,11 +188,11 @@ public class AuthService(
             token.IsRevoked = true;
 
         await context.SaveChangesAsync();
-        cache.Remove(key);
     }
 
     private async Task<User> CreateMemberAccountAsync(
-        RegisterRequestDTO request)
+        RegisterRequestDTO request,
+        string? passwordHash = null)
     {
         var email = NormalizeEmail(request.Email);
 
@@ -248,8 +215,7 @@ public class AuthService(
         var user = new User
         {
             Email = email,
-            PasswordHash =
-                PasswordHelper.HashPassword(request.Password),
+            PasswordHash = passwordHash ?? PasswordHelper.HashPassword(request.Password),
             FullName = request.FullName.Trim(),
             PhoneNumber = request.Phone?.Trim(),
             Role = UserRoles.Member,
@@ -377,10 +343,10 @@ public class AuthService(
         email.Trim().ToLowerInvariant();
 
     private static string RegistrationKey(string email) =>
-        $"register-otp:{email}";
+        $"sportscenter:otp:register:{email}";
 
     private static string ResetPasswordKey(string email) =>
-        $"reset-otp:{email}";
+        $"sportscenter:otp:reset:{email}";
 
     private static string GenerateOtp() =>
         RandomNumberGenerator.GetInt32(0, 1_000_000)
@@ -389,19 +355,6 @@ public class AuthService(
     private static string HashOtp(string otp) =>
         Convert.ToHexString(
             SHA256.HashData(Encoding.UTF8.GetBytes(otp)));
-
-    private static bool MatchesOtp(string otp, string storedHash)
-    {
-        var actual =
-            SHA256.HashData(Encoding.UTF8.GetBytes(otp));
-
-        var expected =
-            Convert.FromHexString(storedHash);
-
-        return CryptographicOperations.FixedTimeEquals(
-            actual,
-            expected);
-    }
 
     private static BusinessException InvalidOtpException() =>
         new(

@@ -12,6 +12,7 @@ using SportsCenterAPI.Settings;
 using System.Reflection.Metadata;
 using System.Security.Claims;
 using System.Text;
+using StackExchange.Redis;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -150,7 +151,25 @@ builder.Services.AddScoped<IClassService, ClassService>();
 builder.Services.Configure<MailSettings>(
 builder.Configuration.GetSection("MailSettings"));
 builder.Services.AddScoped<IEmailService, EmailService>();
-builder.Services.AddMemoryCache();
+builder.Services.AddSingleton<IConnectionMultiplexer>(provider =>
+{
+    var configuration = provider.GetRequiredService<IConfiguration>();
+    var connection = configuration.GetConnectionString("Redis")
+        ?? throw new InvalidOperationException("Chưa cấu hình ConnectionStrings:Redis.");
+    var options = ConfigurationOptions.Parse(connection);
+    options.AbortOnConnectFail = false;
+    options.ConnectTimeout = 3000;
+    options.ConnectRetry = 1;
+    options.AsyncTimeout = 5000;
+    options.SyncTimeout = 5000;
+    options.BacklogPolicy = BacklogPolicy.FailFast;
+    return ConnectionMultiplexer.Connect(options);
+});
+builder.Services.AddSingleton<RedisOtpStore>();
+builder.Services.AddHttpClient<IAIService, AIService>(client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(60);
+});
 builder.Services.AddScoped<IClassCatalogService, ClassCatalogService>();
 builder.Services.AddScoped<ITrainingPlanService, TrainingPlanService>();
 builder.Services.AddScoped<IReportService, ReportService>();
@@ -191,9 +210,6 @@ app.UseMiddleware<ExceptionMiddleware>();
 
 if (app.Environment.IsDevelopment() || builder.Configuration.GetValue<bool>("OpenApi:Enabled"))
 {
-    app.MapOpenApi();
-    app.MapScalarApiReference();
-
     //bật giao diện Swagger UI khi chạy ứng dụng
     app.UseSwagger();
     app.UseSwaggerUI(c =>
@@ -217,8 +233,9 @@ app.MapControllers();
 //}
 
 // Tự động chạy Migration và nạp dữ liệu mẫu
-using (var scope = app.Services.CreateScope())
+if (builder.Configuration.GetValue("Database:InitializeOnStartup", true))
 {
+    using var scope = app.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<SportsCenterAPI.Data.AppDbContext>();
     db.Database.Migrate();
     await SportsCenterAPI.Data.DbSeeder.SeedAsync(db);
