@@ -13,7 +13,7 @@ public class RegisterRequestDTO
     public string Email { get; set; } = string.Empty;
 
     [Required(ErrorMessage = "Password is required")]
-    [MinLength(6, ErrorMessage = "Password must be at least 6 characters")]
+    [StringLength(72, MinimumLength = 8, ErrorMessage = "Mật khẩu phải từ 8 đến 72 ký tự, tối đa 72 byte UTF-8.")]
     public string Password { get; set; } = string.Empty;
 
     [Required(ErrorMessage = "Full name is required")]

@@ -14,12 +14,17 @@ namespace SportsCenterAPI.Helpers
         /// <returns>BCrypt hashed password string / Chuỗi mật khẩu đã được băm</returns>
         public static string HashPassword(string password)
         {
-            if (string.IsNullOrWhiteSpace(password))
-            {
-                throw new ArgumentException("Password cannot be null or empty.", nameof(password));
-            }
-
+            ValidateNewPassword(password);
             return BCrypt.Net.BCrypt.HashPassword(password);
+        }
+
+        public static void ValidateNewPassword(string? password)
+        {
+            if (string.IsNullOrWhiteSpace(password) || password.Length < 8)
+                throw new BusinessException(400, "Mật khẩu phải có ít nhất 8 ký tự và không được toàn khoảng trắng.");
+
+            if (System.Text.Encoding.UTF8.GetByteCount(password) > 72)
+                throw new BusinessException(400, "Mật khẩu không được vượt quá 72 byte UTF-8.");
         }
 
         /// <summary>

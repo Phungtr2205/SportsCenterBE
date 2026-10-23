@@ -163,6 +163,9 @@ public class AuthService(
                 "Passwords do not match.");
         }
 
+        // Dữ liệu sai không được làm mất OTP còn hợp lệ.
+        PasswordHelper.ValidateNewPassword(request.NewPassword);
+
         var email = NormalizeEmail(request.Email);
         var key = ResetPasswordKey(email);
 
@@ -242,8 +245,8 @@ public class AuthService(
         ValidateRefreshTokenRequest(tokenDTO);
         var tokenHash = HashRefreshToken(tokenDTO.RefreshTokenKey);
 
-        // Tracked so RowVersion prevents two requests from rotating the same token.
         var storedToken = await context.RefreshTokens
+            .AsNoTracking()
             .Include(token => token.User)
             .SingleOrDefaultAsync(token => token.TokenHash == tokenHash);
 
@@ -258,16 +261,19 @@ public class AuthService(
         response.RefreshTokenKey = refreshTokenKey;
         response.RefreshTokenExpiresAt = DateTime.SpecifyKind(storedToken.ExpiresAt, DateTimeKind.Utc);
 
-        // Rotate the secret without extending the original session lifetime.
-        storedToken.TokenHash = HashRefreshToken(refreshTokenKey);
-        try
-        {
-            await context.SaveChangesAsync();
-        }
-        catch (DbUpdateConcurrencyException)
-        {
+        var newHash = HashRefreshToken(refreshTokenKey);
+
+        // Đổi hash nguyên tử: chỉ request còn giữ hash cũ được thành công.
+        // Giữ nguyên ExpiresAt, không kéo dài phiên đăng nhập.
+        var updated = await context.RefreshTokens
+            .Where(token => token.Id == storedToken.Id &&
+                token.TokenHash == tokenHash && !token.IsRevoked &&
+                token.ExpiresAt > DateTime.UtcNow && token.User.IsActive &&
+                token.User.Role == storedToken.User.Role)
+            .ExecuteUpdateAsync(setters => setters.SetProperty(token => token.TokenHash, newHash));
+
+        if (updated != 1)
             throw new UnauthorizedAccessException("Refresh token has already been used or revoked.");
-        }
 
         return response;
     }
