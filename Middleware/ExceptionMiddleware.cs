@@ -36,6 +36,10 @@ namespace SportsCenterAPI.Middleware
             {
                 await _next(context);
             }
+            catch (OperationCanceledException) when (context.RequestAborted.IsCancellationRequested)
+            {
+                // Client đã ngắt kết nối, không ghi lỗi 500 hoặc cố gửi phản hồi.
+            }
             catch (Exception ex)
             {
                 // Log exception details with request path and method
