@@ -243,7 +243,3 @@ if (builder.Configuration.GetValue("Database:InitializeOnStartup", true))
 
 
 app.Run();
-
-// Allows the integration-test host to run the actual API pipeline.
-public partial class Program { }
-

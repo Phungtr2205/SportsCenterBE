@@ -206,22 +206,3 @@ Hai endpoint dùng GroqCloud Responses API với `store=false`. Dữ liệu mụ
 Endpoint và JSON đăng ký/quên mật khẩu giữ nguyên. Mỗi OTP là một Redis hash gồm mã đã băm SHA-256, dữ liệu chờ và số lần sai; TTL 300 giây. Mật khẩu đăng ký được băm BCrypt trước khi lưu dữ liệu chờ. Lua script kiểm tra và xóa OTP cùng lúc, nên hai request không thể sử dụng thành công cùng một mã. Sai 5 lần hoặc hết hạn phải xin mã mới; gửi lại thay dữ liệu chờ cũ.
 
 Redis không sẵn sàng trả `503`, không chuyển sang bộ nhớ riêng từng API. OTP đúng được dùng một lần trước khi tạo tài khoản/đổi mật khẩu; nếu bước database sau đó lỗi, cần xin OTP mới.
-
-## 8. Test độc lập và tự dọn dữ liệu
-
-Yêu cầu Docker Desktop đang chạy và .NET SDK 10. Từ thư mục repo:
-
-```powershell
-# Test HTTP, JWT, PostgreSQL và Redis thật; email/GroqCloud được giả lập.
-.\tests\Run-Checks.ps1
-
-# Thêm build Dockerfile và chạy kiểm tra Swagger/login trên container.
-.\tests\Run-Checks.ps1 -DockerSmoke
-
-# Tùy chọn: gọi Groq thật bằng key trong User Secrets, chỉ gửi dữ liệu giả.
-.\tests\Run-Checks.ps1 -LiveGroq
-```
-
-Script tạo PostgreSQL/Redis riêng với tên ngẫu nhiên và cổng loopback, không sử dụng database trong appsettings. Các ca test kiểm tra quyền Member/Coach, giới hạn dữ liệu AI, lỗi nhà cung cấp, OTP hết hạn, khóa sau 5 lần sai, xác nhận đồng thời, dùng qua hai API instance và đổi mật khẩu/thu hồi refresh token.
-
-Khối `finally` xóa container/volume/network test, image smoke test và thư mục tạm của lần chạy; giữ code chức năng và source test. Mặc định không gửi email thật, không gọi AI thật, không thanh toán thật. Chỉ khi chọn `-LiveGroq`, script mới gọi Groq bằng key từ User Secrets (hoặc `SPORTSCENTER_TEST_GROQ_KEY`), có thể tiêu thụ hạn mức/phí của tài khoản. Ba ca kiểm tra thực tế gồm câu hỏi đau khi tập ngực, kỹ thuật squat và tình trạng gói bị hủy, đều dùng dữ liệu giả trong database test. Đây là kiểm tra một số tình huống cụ thể, không bảo đảm mọi câu trả lời AI luôn đúng. Các test này chưa thay thế việc kiểm thử toàn bộ 4 flow nghiệp vụ trên giao diện.
