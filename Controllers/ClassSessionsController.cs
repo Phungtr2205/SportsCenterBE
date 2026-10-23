@@ -21,6 +21,9 @@ public class ClassSessionsController : BaseApiController
     // 1. Tìm kiếm các buổi học.
     // Ai cũng có thể xem, không cần đăng nhập.
     // GET /api/class-sessions
+    /// <summary>
+    /// Tìm kiếm buổi học theo bộ lọc và phân trang
+    /// </summary>
     [HttpGet]
     [AllowAnonymous]
     public async Task<IActionResult> Search(
@@ -36,6 +39,9 @@ public class ClassSessionsController : BaseApiController
 
     // 2. HLV xem các buổi học mình phụ trách.
     // GET /api/class-sessions/mine
+    /// <summary>
+    /// Xem lịch dạy của huấn luyện viên đang đăng nhập
+    /// </summary>
     [HttpGet("mine")]
     [Authorize(Roles = "Coach")]
     public async Task<IActionResult> Mine(
@@ -54,6 +60,9 @@ public class ClassSessionsController : BaseApiController
 
     // 3. Hội viên tự đăng ký một buổi học.
     // POST /api/class-sessions/5/registrations
+    /// <summary>
+    /// Đăng ký một buổi học cho tôi
+    /// </summary>
     [HttpPost("{id:int}/registrations")]
     [Authorize(Roles = "Member")]
     public async Task<IActionResult> Book(
@@ -76,6 +85,9 @@ public class ClassSessionsController : BaseApiController
 
     // 4. Lễ tân hoặc quản lý đăng ký buổi học cho hội viên.
     // POST /api/class-sessions/5/registrations/members/10
+    /// <summary>
+    /// Đăng ký buổi học thay cho hội viên
+    /// </summary>
     [HttpPost("{id:int}/registrations/members/{memberId:int}")]
     [Authorize(Roles = "Receptionist,Manager")]
     public async Task<IActionResult> BookForMember(
@@ -101,6 +113,9 @@ public class ClassSessionsController : BaseApiController
     // 5. Xem danh sách học viên của một buổi học.
     // Service kiểm tra HLV có phụ trách buổi học này không.
     // GET /api/class-sessions/5/roster
+    /// <summary>
+    /// Xem danh sách học viên của buổi học
+    /// </summary>
     [HttpGet("{id:int}/roster")]
     [Authorize(Roles = "Coach,Receptionist,Manager")]
     public async Task<IActionResult> Roster(
@@ -120,6 +135,9 @@ public class ClassSessionsController : BaseApiController
     // 6. Quản lý hủy toàn bộ buổi học.
     // Đây không phải thao tác hội viên hủy đăng ký cá nhân.
     // POST /api/class-sessions/5/cancel
+    /// <summary>
+    /// Quản lý hủy toàn bộ buổi học
+    /// </summary>
     [HttpPost("{id:int}/cancel")]
     [Authorize(Roles = "Manager")]
     public async Task<IActionResult> Cancel(
@@ -141,6 +159,9 @@ public class ClassSessionsController : BaseApiController
     // 7. Đánh dấu buổi học đã hoàn thành.
     // Service kiểm tra thời gian và quyền thao tác.
     // POST /api/class-sessions/5/complete
+    /// <summary>
+    /// Đánh dấu buổi học đã hoàn thành
+    /// </summary>
     [HttpPost("{id:int}/complete")]
     [Authorize(Roles = "Coach,Receptionist,Manager")]
     public async Task<IActionResult> Complete(
@@ -159,6 +180,9 @@ public class ClassSessionsController : BaseApiController
 
     // 8. Xem đánh giá của buổi học, có phân trang.
     // GET /api/class-sessions/5/reviews?page=1&pageSize=20
+    /// <summary>
+    /// Xem các đánh giá của buổi học
+    /// </summary>
     [HttpGet("{id:int}/reviews")]
     [AllowAnonymous]
     public async Task<IActionResult> Reviews(

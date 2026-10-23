@@ -17,6 +17,9 @@ public class ProfileController : BaseApiController
         _profileService = profileService;
     }
 
+    /// <summary>
+    /// Xem thông tin tài khoản đang đăng nhập
+    /// </summary>
     [HttpGet]
     public async Task<IActionResult> GetProfile()
     {
@@ -32,6 +35,9 @@ public class ProfileController : BaseApiController
         );
     }
 
+    /// <summary>
+    /// Cập nhật thông tin tài khoản hoặc đổi mật khẩu
+    /// </summary>
     [HttpPut]
     public async Task<IActionResult> UpdateProfile(
         [FromBody] UpdateProfileDTO dto)

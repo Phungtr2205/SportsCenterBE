@@ -32,6 +32,9 @@ public class PaymentsController : ControllerBase
 
     // GET /api/payments
     // Hội viên chỉ xem các thanh toán của mình.
+    /// <summary>
+    /// Xem lịch sử thanh toán trong phạm vi được phép
+    /// </summary>
     [HttpGet]
     [ProducesResponseType(
         typeof(ApiResponse<List<PaymentDTO>>),
@@ -44,6 +47,9 @@ public class PaymentsController : ControllerBase
     }
 
     // GET /api/payments/{id}
+    /// <summary>
+    /// Xem chi tiết giao dịch thanh toán
+    /// </summary>
     [HttpGet("{id:int:min(1)}")]
     [ProducesResponseType(
         typeof(ApiResponse<PaymentDTO>),
@@ -59,6 +65,9 @@ public class PaymentsController : ControllerBase
 
     // POST /api/payments
     // Tạo hoặc lấy lại yêu cầu thanh toán Pending.
+    /// <summary>
+    /// Tạo hoặc lấy lại yêu cầu thanh toán đang chờ xử lý
+    /// </summary>
     [HttpPost]
     [ProducesResponseType(
         typeof(ApiResponse<PaymentDTO>),
@@ -75,6 +84,9 @@ public class PaymentsController : ControllerBase
 
     // POST /api/payments/{id}/sync
     // Đồng bộ trạng thái thực tế từ payOS.
+    /// <summary>
+    /// Đồng bộ trạng thái thanh toán từ payOS
+    /// </summary>
     [HttpPost("{id:int:min(1)}/sync")]
     [ProducesResponseType(
         typeof(ApiResponse<PaymentDTO>),
@@ -89,6 +101,9 @@ public class PaymentsController : ControllerBase
     }
 
     // POST /api/payments/{id}/cancel
+    /// <summary>
+    /// Hủy yêu cầu thanh toán payOS
+    /// </summary>
     [HttpPost("{id:int:min(1)}/cancel")]
     [ProducesResponseType(
         typeof(ApiResponse<PaymentDTO>),
@@ -107,6 +122,9 @@ public class PaymentsController : ControllerBase
 
     // POST /api/payments/payos/webhook
     // Service xác minh chữ ký trước khi xử lý dữ liệu payOS.
+    /// <summary>
+    /// Nhận webhook payOS và xác minh chữ ký giao dịch
+    /// </summary>
     [AllowAnonymous]
     [HttpPost("payos/webhook")]
     [ProducesResponseType(StatusCodes.Status200OK)]
@@ -134,11 +152,9 @@ public class PaymentsController : ControllerBase
     }
 
     /// <summary>
-    /// GET /api/payments/{id}/export-pdf
-    /// Xuất biên lai của giao dịch đã hoàn tất.
-    /// Member chỉ được tải biên lai của mình.
-    /// Receptionist và Manager được tải biên lai của hội viên.
+    /// Xuất biên lai PDF của giao dịch đã hoàn tất
     /// </summary>
+    /// <remarks>Hội viên chỉ được tải biên lai của mình. Lễ tân và quản lý được tải biên lai của hội viên.</remarks>
     [HttpGet("{id:int:min(1)}/export-pdf")]
     [ProducesResponseType(
         typeof(FileContentResult),

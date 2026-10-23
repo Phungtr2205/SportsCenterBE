@@ -21,6 +21,9 @@ public class UsersController : ControllerBase
     }
 
     // Lấy danh sách nhân viên.
+    /// <summary>
+    /// Xem danh sách tài khoản nhân viên
+    /// </summary>
     [HttpGet]
     public async Task<ActionResult<ApiResponse<IReadOnlyList<StaffResponseDTO>>>> GetAll()
     {
@@ -33,6 +36,9 @@ public class UsersController : ControllerBase
     }
 
     // Lấy thông tin một nhân viên.
+    /// <summary>
+    /// Xem chi tiết tài khoản nhân viên
+    /// </summary>
     [HttpGet("{id:int}")]
     public async Task<ActionResult<ApiResponse<StaffResponseDTO>>> GetById(
         int id)
@@ -46,6 +52,9 @@ public class UsersController : ControllerBase
     }
 
     // Tạo nhân viên và ghi nhận người thực hiện.
+    /// <summary>
+    /// Tạo tài khoản nhân viên hoặc huấn luyện viên
+    /// </summary>
     [HttpPost]
     [ProducesResponseType(
         typeof(ApiResponse<StaffResponseDTO>),
@@ -66,6 +75,9 @@ public class UsersController : ControllerBase
     }
 
     // Thay đổi quyền nhân viên.
+    /// <summary>
+    /// Thay đổi vai trò tài khoản nhân viên
+    /// </summary>
     [HttpPut("{id:int}/role")]
     public async Task<ActionResult<ApiResponse<StaffResponseDTO>>> UpdateRole(
         int id,
@@ -85,6 +97,9 @@ public class UsersController : ControllerBase
     }
 
     // Vô hiệu hóa nhân viên, giữ lại dữ liệu lịch sử.
+    /// <summary>
+    /// Vô hiệu hóa tài khoản nhân viên
+    /// </summary>
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> Deactivate(int id)
     {

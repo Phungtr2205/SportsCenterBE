@@ -24,6 +24,9 @@ builder.Services.AddControllers();
 // Swagger / OpenAPI Documentation
 builder.Services.AddSwaggerGen(option =>
 {
+    var xmlFile = $"{typeof(Program).Assembly.GetName().Name}.xml";
+    option.IncludeXmlComments(Path.Combine(AppContext.BaseDirectory, xmlFile));
+
     option.SwaggerDoc("v1", new Microsoft.OpenApi.OpenApiInfo
     {
         Title = "Sports Center Management System API",

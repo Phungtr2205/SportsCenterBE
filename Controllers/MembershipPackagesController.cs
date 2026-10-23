@@ -13,6 +13,9 @@ namespace SportsCenterAPI.Controllers;
 [Authorize(Roles = "Manager")]
 public class MembershipPackagesController(IMembershipPackageService service) : ControllerBase
 {
+    /// <summary>
+    /// Xem danh sách gói tập đang hoạt động
+    /// </summary>
     [AllowAnonymous]
     [HttpGet]
     public async Task<ActionResult<ApiResponse<IReadOnlyList<MembershipPackageDTO>>>> GetActive(CancellationToken cancellationToken)
@@ -21,6 +24,9 @@ public class MembershipPackagesController(IMembershipPackageService service) : C
         return Ok(ApiResponse<IReadOnlyList<MembershipPackageDTO>>.Ok(packages, "Active membership packages retrieved."));
     }
 
+    /// <summary>
+    /// Xem chi tiết gói tập đang hoạt động
+    /// </summary>
     [AllowAnonymous]
     [HttpGet("{id:int}")]
     public async Task<ActionResult<ApiResponse<MembershipPackageDTO>>> GetById(int id, CancellationToken cancellationToken)
@@ -29,6 +35,9 @@ public class MembershipPackagesController(IMembershipPackageService service) : C
         return Ok(ApiResponse<MembershipPackageDTO>.Ok(package, "Membership package retrieved."));
     }
 
+    /// <summary>
+    /// Quản lý xem toàn bộ danh sách gói tập
+    /// </summary>
     [HttpGet("manage")]
     public async Task<ActionResult<ApiResponse<IReadOnlyList<MembershipPackageDTO>>>> GetForManagement(CancellationToken cancellationToken)
     {
@@ -36,6 +45,9 @@ public class MembershipPackagesController(IMembershipPackageService service) : C
         return Ok(ApiResponse<IReadOnlyList<MembershipPackageDTO>>.Ok(packages, "All membership packages retrieved."));
     }
 
+    /// <summary>
+    /// Quản lý xem chi tiết một gói tập
+    /// </summary>
     [HttpGet("manage/{id:int}")]
     public async Task<ActionResult<ApiResponse<MembershipPackageDTO>>> GetForManagementById(int id, CancellationToken cancellationToken)
     {
@@ -43,6 +55,9 @@ public class MembershipPackagesController(IMembershipPackageService service) : C
         return Ok(ApiResponse<MembershipPackageDTO>.Ok(package, "Membership package retrieved."));
     }
 
+    /// <summary>
+    /// Tạo gói tập mới
+    /// </summary>
     [HttpPost]
     public async Task<ActionResult<ApiResponse<MembershipPackageDTO>>> Create(MembershipPackageRequestDTO request, CancellationToken cancellationToken)
     {
@@ -51,6 +66,9 @@ public class MembershipPackagesController(IMembershipPackageService service) : C
             ApiResponse<MembershipPackageDTO>.CreatedAt(package, "Membership package created."));
     }
 
+    /// <summary>
+    /// Cập nhật thông tin gói tập
+    /// </summary>
     [HttpPut("{id:int}")]
     public async Task<ActionResult<ApiResponse<MembershipPackageDTO>>> Update(int id, UpdateMembershipPackageRequestDTO request, CancellationToken cancellationToken)
     {
@@ -58,6 +76,9 @@ public class MembershipPackagesController(IMembershipPackageService service) : C
         return Ok(ApiResponse<MembershipPackageDTO>.Ok(package, "Membership package updated."));
     }
 
+    /// <summary>
+    /// Ngừng cung cấp gói tập
+    /// </summary>
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> Deactivate(int id, CancellationToken cancellationToken)
     {

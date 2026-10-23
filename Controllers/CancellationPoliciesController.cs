@@ -15,6 +15,9 @@ namespace SportsCenterAPI.Controllers;
 public class CancellationPoliciesController(IClassService service)
     : ControllerBase
 {
+    /// <summary>
+    /// Xem danh sách chính sách hủy đăng ký buổi học
+    /// </summary>
     [HttpGet]
     [ProducesResponseType(
         typeof(ApiResponse<List<CancellationPolicy>>),
@@ -33,6 +36,9 @@ public class CancellationPoliciesController(IClassService service)
 
     }
 
+    /// <summary>
+    /// Tạo chính sách hủy đăng ký buổi học
+    /// </summary>
     [HttpPost]
     public async Task<IActionResult> CreatePolicy(
         PolicyRequest request,
@@ -48,6 +54,9 @@ public class CancellationPoliciesController(IClassService service)
             "Tạo chính sách hủy thành công."));
     }
 
+    /// <summary>
+    /// Cập nhật chính sách hủy đăng ký buổi học
+    /// </summary>
     [HttpPut("{id:int}")]
     public async Task<IActionResult> UpdatePolicy(int id,PolicyRequest request,CancellationToken ct)
     {

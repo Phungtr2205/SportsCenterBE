@@ -11,6 +11,9 @@ namespace SportsCenterAPI.Controllers;
 [Authorize]
 public class TrainingPlansController(ITrainingPlanService trainingService) : BaseApiController
 {
+    /// <summary>
+    /// Xem danh mục bài tập để lập kế hoạch tập luyện
+    /// </summary>
     [HttpGet("exercises")]
     public async Task<IActionResult> GetExercisesCatalog()
     {
@@ -18,6 +21,9 @@ public class TrainingPlansController(ITrainingPlanService trainingService) : Bas
         return Ok(new { success = true, data = result });
     }
 
+    /// <summary>
+    /// Huấn luyện viên tạo kế hoạch tập luyện
+    /// </summary>
     [HttpPost]
     [Authorize(Roles = UserRoles.Coach)]
     public async Task<IActionResult> CreatePlan([FromBody] CreateTrainingPlanDTO request)
@@ -33,6 +39,9 @@ public class TrainingPlansController(ITrainingPlanService trainingService) : Bas
         }
     }
 
+    /// <summary>
+    /// Xem kế hoạch tập luyện của một hội viên
+    /// </summary>
     [HttpGet("members/{memberId}")]
     [Authorize(Roles = UserRoles.Coach + "," + UserRoles.Member + "," + UserRoles.FrontDesk)]
     public async Task<IActionResult> GetMemberPlans(int memberId)
@@ -41,6 +50,9 @@ public class TrainingPlansController(ITrainingPlanService trainingService) : Bas
         return Ok(new { success = true, data = result });
     }
 
+    /// <summary>
+    /// Huấn luyện viên cập nhật kết quả và nhận xét bài tập
+    /// </summary>
     [HttpPut("exercises/{planExerciseId}/result")]
     [Authorize(Roles = UserRoles.Coach)]
     public async Task<IActionResult> UpdateResult(int planExerciseId, [FromBody] UpdateExerciseResultDTO request)
@@ -56,6 +68,9 @@ public class TrainingPlansController(ITrainingPlanService trainingService) : Bas
         }
     }
 
+    /// <summary>
+    /// Huấn luyện viên cập nhật trạng thái kế hoạch tập luyện
+    /// </summary>
     [HttpPut("{id:int}/status")]
     [Authorize(Roles = UserRoles.Coach)]
     public async Task<IActionResult> UpdateStatus(int id, [FromQuery] string status = "Completed")

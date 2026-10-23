@@ -14,6 +14,9 @@ namespace SportsCenterAPI.Controllers
         private readonly ISupportTicketService _ticketService;
         public SupportTicketsController(ISupportTicketService ticketService) { _ticketService = ticketService; }
 
+        /// <summary>
+        /// Gửi yêu cầu hỗ trợ đến trung tâm
+        /// </summary>
         [HttpPost]
         [Authorize(Roles = "Member")]
         public async Task<IActionResult> CreateTicket([FromBody] CreateTicketRequest request)
@@ -25,6 +28,9 @@ namespace SportsCenterAPI.Controllers
             return Ok(result);
         }
 
+        /// <summary>
+        /// Xem các yêu cầu hỗ trợ của tôi
+        /// </summary>
         [HttpGet("my-tickets")]
         [Authorize(Roles = "Member")]
         public async Task<IActionResult> GetMyTickets()
@@ -36,6 +42,9 @@ namespace SportsCenterAPI.Controllers
             return Ok(result);
         }
 
+        /// <summary>
+        /// Nhân viên xem danh sách yêu cầu hỗ trợ
+        /// </summary>
         [HttpGet]
         [Authorize(Roles = "Receptionist,Manager")]
         public async Task<IActionResult> GetAllTickets([FromQuery] string? status)
@@ -44,6 +53,9 @@ namespace SportsCenterAPI.Controllers
             return Ok(result);
         }
 
+        /// <summary>
+        /// Phản hồi và xử lý yêu cầu hỗ trợ
+        /// </summary>
         [HttpPut("{id}/resolve")]
         [Authorize(Roles = "Receptionist,Manager")]
         public async Task<IActionResult> ResolveTicket(int id, [FromBody] ResolveTicketRequest request)

@@ -21,6 +21,9 @@ public class SportClassesController : BaseApiController
     // 1. Tìm kiếm lớp học.
     // Không cần đăng nhập.
     // GET /api/classes
+    /// <summary>
+    /// Tìm kiếm lớp học đang hoạt động
+    /// </summary>
     [HttpGet]
     [AllowAnonymous]
     public async Task<IActionResult> Search(
@@ -36,6 +39,9 @@ public class SportClassesController : BaseApiController
 
     // 2. Quản lý xem danh sách lớp, gồm cả lớp ngừng hoạt động.
     // GET /api/classes/manage
+    /// <summary>
+    /// Quản lý xem danh sách lớp học theo bộ lọc
+    /// </summary>
     [HttpGet("manage")]
     public async Task<IActionResult> Manage(
         [FromQuery] ClassSearch search,
@@ -54,6 +60,9 @@ public class SportClassesController : BaseApiController
     // 3. Xem thông tin một lớp học.
     // Không cần đăng nhập.
     // GET /api/classes/5
+    /// <summary>
+    /// Xem chi tiết lớp học
+    /// </summary>
     [HttpGet("{id:int}")]
     [AllowAnonymous]
     public async Task<IActionResult> Get(
@@ -69,6 +78,9 @@ public class SportClassesController : BaseApiController
 
     // 4. Quản lý tạo lớp học.
     // POST /api/classes
+    /// <summary>
+    /// Tạo lớp học và phân công huấn luyện viên
+    /// </summary>
     [HttpPost]
     public async Task<IActionResult> Create(
         [FromBody] ClassRequest request,
@@ -96,6 +108,9 @@ public class SportClassesController : BaseApiController
 
     // 5. Quản lý cập nhật lớp học.
     // PUT /api/classes/5
+    /// <summary>
+    /// Cập nhật thông tin lớp học
+    /// </summary>
     [HttpPut("{id:int}")]
     public async Task<IActionResult> Update(
         [FromRoute] int id,
@@ -117,6 +132,9 @@ public class SportClassesController : BaseApiController
     // 6. Quản lý ngừng hoạt động lớp học.
     // Service thực hiện xóa mềm bằng IsActive = false.
     // DELETE /api/classes/5
+    /// <summary>
+    /// Ngừng hoạt động lớp học
+    /// </summary>
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> Deactivate(
         [FromRoute] int id,
@@ -135,6 +153,9 @@ public class SportClassesController : BaseApiController
     // 7. Xem danh sách buổi học thuộc một lớp.
     // Không cần đăng nhập.
     // GET /api/classes/5/sessions
+    /// <summary>
+    /// Xem danh sách buổi học của một lớp
+    /// </summary>
     [HttpGet("{id:int}/sessions")]
     [AllowAnonymous]
     public async Task<IActionResult> Sessions(
@@ -152,6 +173,9 @@ public class SportClassesController : BaseApiController
 
     // 8. Quản lý thêm buổi học vào lớp.
     // POST /api/classes/5/sessions
+    /// <summary>
+    /// Tạo buổi học cho lớp
+    /// </summary>
     [HttpPost("{id:int}/sessions")]
     public async Task<IActionResult> AddSession(
         [FromRoute] int id,
@@ -179,6 +203,9 @@ public class SportClassesController : BaseApiController
 
     // 9. Quản lý cập nhật một buổi học trong lớp.
     // PUT /api/classes/5/sessions/10
+    /// <summary>
+    /// Cập nhật lịch, huấn luyện viên và thông tin buổi học
+    /// </summary>
     [HttpPut("{id:int}/sessions/{sessionId:int}")]
     public async Task<IActionResult> UpdateSession(
         [FromRoute] int id,

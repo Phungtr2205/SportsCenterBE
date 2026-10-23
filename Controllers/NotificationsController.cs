@@ -21,6 +21,9 @@ public class NotificationsController : BaseApiController
     // 1. Xem thông báo của tài khoản đang đăng nhập.
     // GET /api/notifications?page=1&pageSize=20
     // Thêm unreadOnly=true để chỉ lấy thông báo chưa đọc.
+    /// <summary>
+    /// Xem thông báo của tôi, có lọc chưa đọc và phân trang
+    /// </summary>
     [HttpGet]
     public async Task<IActionResult> Get(
         CancellationToken cancellationToken,
@@ -80,6 +83,9 @@ public class NotificationsController : BaseApiController
 
     // 2. Đánh dấu một thông báo là đã đọc.
     // PATCH /api/notifications/5/read
+    /// <summary>
+    /// Đánh dấu một thông báo của tôi là đã đọc
+    /// </summary>
     [HttpPatch("{id:int}/read")]
     public async Task<IActionResult> MarkRead(
         [FromRoute] int id,

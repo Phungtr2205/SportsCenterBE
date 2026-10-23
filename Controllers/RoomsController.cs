@@ -18,6 +18,9 @@ public class RoomsController : ControllerBase
     }
 
     // Tất cả mọi người (kể cả Hội viên, HLV, Lễ tân) đều có thể xem danh sách phòng
+    /// <summary>
+    /// Xem danh sách phòng tập theo trạng thái hoạt động
+    /// </summary>
     [HttpGet]
     public async Task<IActionResult> GetAll([FromQuery] bool? isActive)
     {
@@ -25,6 +28,9 @@ public class RoomsController : ControllerBase
         return Ok(result);
     }
 
+    /// <summary>
+    /// Xem chi tiết phòng tập
+    /// </summary>
     [HttpGet("{id}")]
     public async Task<IActionResult> GetById(int id)
     {
@@ -33,6 +39,9 @@ public class RoomsController : ControllerBase
     }
 
     // Kiểm tra xem phòng có bị trùng lịch học vào khung giờ này không
+    /// <summary>
+    /// Kiểm tra phòng tập còn trống trong khoảng thời gian
+    /// </summary>
     [HttpGet("{id}/check-availability")]
     public async Task<IActionResult> CheckAvailability(int id, [FromQuery] DateTime startsAt, [FromQuery] DateTime endsAt)
     {
@@ -41,6 +50,9 @@ public class RoomsController : ControllerBase
     }
 
     // Chỉ Quản lý trung tâm (Manager) mới có quyền tạo phòng
+    /// <summary>
+    /// Tạo phòng tập mới
+    /// </summary>
     [HttpPost]
     [Authorize(Roles = "Manager")]
     public async Task<IActionResult> Create([FromBody] CreateRoomRequest request)
@@ -50,6 +62,9 @@ public class RoomsController : ControllerBase
     }
 
     // Chỉ Quản lý mới có quyền cập nhật thông tin phòng
+    /// <summary>
+    /// Cập nhật thông tin phòng tập
+    /// </summary>
     [HttpPut("{id}")]
     [Authorize(Roles = "Manager")]
     public async Task<IActionResult> Update(int id, [FromBody] UpdateRoomRequest request)
@@ -59,6 +74,9 @@ public class RoomsController : ControllerBase
     }
 
     // Chỉ Quản lý mới có quyền xóa/ngưng hoạt động phòng
+    /// <summary>
+    /// Ngừng sử dụng phòng tập
+    /// </summary>
     [HttpDelete("{id}")]
     [Authorize(Roles = "Manager")]
     public async Task<IActionResult> Delete(int id)
