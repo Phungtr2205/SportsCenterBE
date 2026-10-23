@@ -382,10 +382,8 @@ public partial class ClassService : IClassService
             s.StartsAt,
             s.EndsAt,
             s.Capacity,
-
             // Số học viên chưa hủy đăng ký.
             s.Registrations.Count(r => r.Status != "Cancelled"),
-
             // Chỉ trả số chỗ còn lại khi buổi học còn nhận đăng ký.
             s.Status == "Scheduled" &&
             s.StartsAt > now &&
@@ -397,11 +395,12 @@ public partial class ClassService : IClassService
                 ? s.Capacity -
                   s.Registrations.Count(r => r.Status != "Cancelled")
                 : 0,
-
             s.Status,
             s.CancellationPolicyId,
             s.CancellationPolicy.MinimumHoursBeforeStart,
-            s.CancellationReason
+            s.CancellationReason,
+            s.RoomId,
+            s.Room != null ? s.Room.Name : null
         ));
     }
 

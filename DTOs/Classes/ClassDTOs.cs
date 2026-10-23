@@ -22,6 +22,7 @@ public class SessionRequest
     public DateTimeOffset StartsAt { get; set; }
     public DateTimeOffset EndsAt { get; set; }
     [Range(1, 10000)] public int Capacity { get; set; }
+    public int? RoomId { get; set; }
 }
 
 public class PolicyRequest
@@ -59,7 +60,8 @@ public record ClassDTO(int Id, string ClassName, int SportId, string SportName, 
     string? CoachName, decimal Price, int MaxCapacity, string? Schedule, DateTime StartDate, DateTime EndDate, bool IsActive);
 public record SessionDTO(int Id, int ClassId, string ClassName, int CoachId, string CoachName,
     DateTime StartsAt, DateTime EndsAt, int Capacity, int CurrentEnrollment, int AvailableSeats,
-    string Status, int CancellationPolicyId, int MinimumHoursBeforeStart, string? CancellationReason);
+    string Status, int CancellationPolicyId, int MinimumHoursBeforeStart, string? CancellationReason,
+    int? RoomId = null, string? RoomName = null);
 public record RegistrationDTO(int Id, int MemberId, int ClassId, int? SessionId, string ClassName,
     DateTime? StartsAt, DateTime? EndsAt, string Status, DateTime RegistrationDate,
     int? CreatedByUserId, DateTime? CancellationDeadline, DateTime? CancelledAt, int? CancelledByUserId, string? CancellationReason,
