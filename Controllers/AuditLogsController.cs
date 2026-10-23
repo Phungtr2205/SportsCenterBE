@@ -12,6 +12,9 @@ namespace SportsCenterAPI.Controllers;
 [Authorize(Roles = UserRoles.Manager)]
 public class AuditLogsController(AppDbContext context) : BaseApiController
 {
+    /// <summary>
+    /// Xem lịch sử thao tác hệ thống, có bộ lọc và phân trang
+    /// </summary>
     [HttpGet]
     public async Task<IActionResult> Get(
         [FromQuery] AuditLogQueryDTO request,

@@ -26,6 +26,9 @@ public class MembersController : ControllerBase
     }
 
     // Lễ tân hoặc quản lý đăng ký hội viên tại quầy.
+    /// <summary>
+    /// Lễ tân đăng ký tài khoản hội viên tại quầy
+    /// </summary>
     [HttpPost]
     [Authorize(Roles = UserRoles.FrontDesk)]
     [ProducesResponseType(
@@ -45,6 +48,9 @@ public class MembersController : ControllerBase
     }
 
     // Lấy danh sách hội viên.
+    /// <summary>
+    /// Lễ tân xem danh sách hội viên
+    /// </summary>
     [HttpGet]
     [Authorize(Roles = UserRoles.FrontDesk)]
     public async Task<ActionResult<ApiResponse<IReadOnlyList<MemberResponseDTO>>>> GetAll()
@@ -58,6 +64,9 @@ public class MembersController : ControllerBase
     }
 
     // Lấy thông tin hội viên theo ID.
+    /// <summary>
+    /// Lễ tân xem thông tin một hội viên
+    /// </summary>
     [HttpGet("{id:int}")]
     [Authorize(Roles = UserRoles.FrontDesk)]
     public async Task<ActionResult<ApiResponse<MemberResponseDTO>>> GetById(
@@ -72,6 +81,9 @@ public class MembersController : ControllerBase
     }
 
     // Hội viên xem hồ sơ của chính mình.
+    /// <summary>
+    /// Xem hồ sơ hội viên của tôi
+    /// </summary>
     [HttpGet("me")]
     [Authorize(Roles = UserRoles.Member)]
     public async Task<ActionResult<ApiResponse<MemberResponseDTO>>> GetMe()
@@ -87,6 +99,9 @@ public class MembersController : ControllerBase
     }
 
     // Quản lý vô hiệu hóa hội viên.
+    /// <summary>
+    /// Vô hiệu hóa tài khoản hội viên
+    /// </summary>
     [HttpDelete("{id:int}")]
     [Authorize(Roles = UserRoles.Manager)]
     public async Task<IActionResult> Deactivate(int id)

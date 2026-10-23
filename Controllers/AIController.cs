@@ -10,6 +10,9 @@ namespace SportsCenterAPI.Controllers;
 [Authorize]
 public class AIController(IAIService service) : BaseApiController
 {
+    /// <summary>
+    /// Gợi ý kế hoạch tập luyện bằng AI theo mục tiêu và trình độ
+    /// </summary>
     [HttpPost("workout-recommendations")]
     [Authorize(Roles = "Member,Coach")]
     public async Task<IActionResult> Recommend(WorkoutAiRequest request, CancellationToken ct)
@@ -18,6 +21,9 @@ public class AIController(IAIService service) : BaseApiController
         return Success(new { answer });
     }
 
+    /// <summary>
+    /// Hỏi trợ lý AI về tập luyện và dịch vụ trung tâm
+    /// </summary>
     [HttpPost("chat")]
     [Authorize(Roles = "Member")]
     public async Task<IActionResult> Chat(ChatAiRequest request, CancellationToken ct)

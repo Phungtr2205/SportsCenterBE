@@ -13,7 +13,10 @@ namespace SportsCenterAPI.Controllers;
 [Authorize]
 public class MemberSubscriptionsController(ISubscriptionService subscriptions) : ControllerBase
 {
-    /// <summary>Member chooses a package. The subscription stays Pending until staff confirms payment.</summary>
+    /// <summary>
+    /// Đăng ký gói tập và chờ thanh toán
+    /// </summary>
+    /// <remarks>Đăng ký ở trạng thái Pending và chỉ được kích hoạt sau khi thanh toán thành công.</remarks>
     [HttpPost]
     [Authorize(Roles = "Member")]
     [ProducesResponseType(typeof(ApiResponse<SubscriptionDTO>), StatusCodes.Status201Created)]
@@ -27,7 +30,9 @@ public class MemberSubscriptionsController(ISubscriptionService subscriptions) :
             ApiResponse<SubscriptionDTO>.CreatedAt(result, "Subscription created; awaiting payment."));
     }
 
-    /// <summary>Receptionist or manager registers a package on behalf of a member.</summary>
+    /// <summary>
+    /// Đăng ký gói tập thay cho hội viên
+    /// </summary>
     [HttpPost("members/{memberId:int}")]
     [Authorize(Roles = "Receptionist,Manager")]
     [ProducesResponseType(typeof(ApiResponse<SubscriptionDTO>), StatusCodes.Status201Created)]
@@ -41,6 +46,9 @@ public class MemberSubscriptionsController(ISubscriptionService subscriptions) :
             ApiResponse<SubscriptionDTO>.CreatedAt(result, "Subscription created; awaiting payment."));
     }
 
+    /// <summary>
+    /// Xem các gói tập tôi đã đăng ký và thời hạn sử dụng
+    /// </summary>
     [HttpGet("mine")]
     [Authorize(Roles = "Member")]
     [ProducesResponseType(typeof(ApiResponse<List<SubscriptionDTO>>), StatusCodes.Status200OK)]
@@ -49,6 +57,9 @@ public class MemberSubscriptionsController(ISubscriptionService subscriptions) :
         Ok(ApiResponse<List<SubscriptionDTO>>.Ok(
             await subscriptions.GetForMemberAsync(ActorId(), null, cancellationToken), "Subscriptions retrieved."));
 
+    /// <summary>
+    /// Xem các gói tập đã đăng ký của một hội viên
+    /// </summary>
     [HttpGet("members/{memberId:int}")]
     [Authorize(Roles = "Receptionist,Manager")]
     [ProducesResponseType(typeof(ApiResponse<List<SubscriptionDTO>>), StatusCodes.Status200OK)]
@@ -57,6 +68,9 @@ public class MemberSubscriptionsController(ISubscriptionService subscriptions) :
         Ok(ApiResponse<List<SubscriptionDTO>>.Ok(
             await subscriptions.GetForMemberAsync(ActorId(), memberId, cancellationToken), "Subscriptions retrieved."));
 
+    /// <summary>
+    /// Xem chi tiết một đăng ký gói tập
+    /// </summary>
     [HttpGet("{id:int}")]
     [Authorize(Roles = "Member,Receptionist,Manager")]
     [ProducesResponseType(typeof(ApiResponse<SubscriptionDTO>), StatusCodes.Status200OK)]
@@ -65,7 +79,10 @@ public class MemberSubscriptionsController(ISubscriptionService subscriptions) :
         Ok(ApiResponse<SubscriptionDTO>.Ok(
             await subscriptions.GetByIdAsync(ActorId(), id, cancellationToken), "Subscription retrieved."));
 
-    /// <summary>Cancel only an unpaid Pending subscription. Paid packages require a separate refund workflow.</summary>
+    /// <summary>
+    /// Hủy đăng ký gói tập chưa thanh toán
+    /// </summary>
+    /// <remarks>Chỉ hủy đăng ký Pending chưa thanh toán. Gói đã thanh toán cần quy trình hoàn tiền riêng.</remarks>
     [HttpPost("{id:int}/cancel")]
     [Authorize(Roles = "Member,Receptionist,Manager")]
     [ProducesResponseType(typeof(ApiResponse<SubscriptionDTO>), StatusCodes.Status200OK)]
@@ -75,7 +92,10 @@ public class MemberSubscriptionsController(ISubscriptionService subscriptions) :
         Ok(ApiResponse<SubscriptionDTO>.Ok(
             await subscriptions.CancelPendingAsync(ActorId(), id, cancellationToken), "Pending subscription cancelled."));
 
-    /// <summary>Staff records a verified full payment and activates the package atomically. Does not charge a bank/card.</summary>
+    /// <summary>
+    /// Nhân viên xác nhận thanh toán và kích hoạt gói tập
+    /// </summary>
+    /// <remarks>API ghi nhận khoản thanh toán đã được kiểm tra và kích hoạt gói; không thực hiện trừ tiền ngân hàng hoặc thẻ.</remarks>
     [HttpPost("{id:int}/payments")]
     [Authorize(Roles = "Receptionist,Manager")]
     [ProducesResponseType(typeof(ApiResponse<PaymentReceiptDTO>), StatusCodes.Status201Created)]

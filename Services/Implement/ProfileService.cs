@@ -1,5 +1,4 @@
 ﻿using System.Data;
-using System.Text;
 using Microsoft.EntityFrameworkCore;
 using SportsCenterAPI.Data;
 using SportsCenterAPI.DTOs.Profile;
@@ -152,21 +151,6 @@ public class ProfileService : IProfileService
 
         if (dto.Password != null)
         {
-            if (string.IsNullOrWhiteSpace(dto.Password) ||
-                dto.Password.Length < 8)
-            {
-                throw new BusinessException(
-                    400,
-                    "Mật khẩu mới phải có ít nhất 8 ký tự và không được toàn khoảng trắng.");
-            }
-
-            if (Encoding.UTF8.GetByteCount(dto.Password) > 72)
-            {
-                throw new BusinessException(
-                    400,
-                    "Mật khẩu không được vượt quá 72 byte UTF-8.");
-            }
-
             user.PasswordHash =
                 PasswordHelper.HashPassword(dto.Password);
         }

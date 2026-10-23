@@ -10,6 +10,9 @@ namespace SportsCenterAPI.Controllers;
 [Authorize(Roles = UserRoles.Manager)] // Chỉ cho phép Manager mới được xem báo cáo
 public class  ReportsController(IReportService reportService) : ControllerBase
 {
+    /// <summary>
+    /// Xem báo cáo tổng quan hoạt động trung tâm
+    /// </summary>
     [HttpGet("overview")]
     public async Task<IActionResult> GetOverview()
     {
@@ -17,6 +20,9 @@ public class  ReportsController(IReportService reportService) : ControllerBase
         return Ok(new { success = true, data = result });
     }
 
+    /// <summary>
+    /// Xem doanh thu từng tháng theo năm
+    /// </summary>
     [HttpGet("revenue")]
     public async Task<IActionResult> GetRevenue([FromQuery] int? year)
     {
@@ -25,6 +31,9 @@ public class  ReportsController(IReportService reportService) : ControllerBase
         return Ok(new { success = true, year = targetYear, data = result });
     }
 
+    /// <summary>
+    /// Xem thống kê tình trạng đăng ký lớp học
+    /// </summary>
     [HttpGet("class-status")]
     public async Task<IActionResult> GetClassStatus()
     {

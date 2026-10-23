@@ -19,6 +19,9 @@ public class GymCheckInsController : ControllerBase
     }
 
     // 1. Hội viên mở app lấy mã thẻ QR của chính mình
+    /// <summary>
+    /// Lấy mã QR hội viên của tôi để check-in tại trung tâm
+    /// </summary>
     [HttpGet("my-qr")]
     [Authorize(Roles = "Member")]
     public async Task<IActionResult> GetMyQr()
@@ -31,6 +34,9 @@ public class GymCheckInsController : ControllerBase
     }
 
     // 2. Lễ tân quét mã QR của hội viên tại cổng vào
+    /// <summary>
+    /// Quét mã QR để ghi nhận hội viên vào trung tâm
+    /// </summary>
     [HttpPost("scan-qr")]
     [Authorize(Roles = "Receptionist,Manager")]
     public async Task<IActionResult> ScanQr([FromBody] ScanQrRequest request)
@@ -43,6 +49,9 @@ public class GymCheckInsController : ControllerBase
     }
 
     // 3. Lễ tân nhập tay MemberId hoặc SĐT (phương án phụ nếu không quét QR)
+    /// <summary>
+    /// Ghi nhận hội viên vào trung tâm bằng mã hội viên hoặc số điện thoại
+    /// </summary>
     [HttpPost("check-in")]
     [Authorize(Roles = "Receptionist,Manager")]
     public async Task<IActionResult> CheckIn([FromBody] CheckInRequest request)
@@ -55,6 +64,9 @@ public class GymCheckInsController : ControllerBase
     }
 
     // 4. Check-out khi khách ra về
+    /// <summary>
+    /// Ghi nhận hội viên rời trung tâm
+    /// </summary>
     [HttpPut("{id}/check-out")]
     [Authorize(Roles = "Receptionist,Manager")]
     public async Task<IActionResult> CheckOut(int id)
@@ -64,6 +76,9 @@ public class GymCheckInsController : ControllerBase
     }
 
     // 5. Xem danh sách khách đã vào trong ngày
+    /// <summary>
+    /// Xem danh sách hội viên check-in trong ngày
+    /// </summary>
     [HttpGet("today")]
     [Authorize(Roles = "Receptionist,Manager")]
     public async Task<IActionResult> GetTodayCheckIns()
@@ -73,6 +88,9 @@ public class GymCheckInsController : ControllerBase
     }
 
     // 6. Hội viên xem lịch sử điểm danh của mình
+    /// <summary>
+    /// Xem lịch sử ra vào trung tâm của tôi
+    /// </summary>
     [HttpGet("my-history")]
     [Authorize(Roles = "Member")]
     public async Task<IActionResult> GetMyHistory()

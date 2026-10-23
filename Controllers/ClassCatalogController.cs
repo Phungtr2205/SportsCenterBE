@@ -19,6 +19,9 @@ public class ClassCatalogController : ControllerBase
         _classCatalogService = classCatalogService;
     }
 
+    /// <summary>
+    /// Xem danh sách bộ môn thể thao
+    /// </summary>
     [HttpGet("sports")]
     [AllowAnonymous]
     public async Task<ActionResult<ApiResponse<List<SportListDTO>>>> GetSports(
@@ -34,6 +37,9 @@ public class ClassCatalogController : ControllerBase
         return Ok(response);
     }
 
+    /// <summary>
+    /// Thêm bộ môn thể thao
+    /// </summary>
     [HttpPost("sports")]
     public async Task<ActionResult<ApiResponse<SportDTO>>> CreateSport(
         [FromBody] SportRequestDTO sportRequestDTO,
@@ -50,6 +56,9 @@ public class ClassCatalogController : ControllerBase
         return Ok(response);
     }
 
+    /// <summary>
+    /// Cập nhật bộ môn thể thao
+    /// </summary>
     [HttpPut("sports/{id:int}")]
     public async Task<ActionResult<ApiResponse<SportDTO>>> UpdateSport(
         int id,
@@ -68,6 +77,9 @@ public class ClassCatalogController : ControllerBase
         return Ok(response);
     }
 
+    /// <summary>
+    /// Xem danh sách huấn luyện viên
+    /// </summary>
     [HttpGet("coaches")]
     [AllowAnonymous]
     public async Task<ActionResult<ApiResponse<List<CoachDTO>>>> GetCoaches(
@@ -83,6 +95,9 @@ public class ClassCatalogController : ControllerBase
         return Ok(response);
     }
 
+    /// <summary>
+    /// Cập nhật hồ sơ chuyên môn của huấn luyện viên
+    /// </summary>
     [HttpPut("coaches/{id:int}/profile")]
     public async Task<ActionResult<ApiResponse<CoachProfileDTO>>> UpdateCoach(
         int id,
