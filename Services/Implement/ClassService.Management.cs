@@ -83,6 +83,11 @@ public partial class ClassService
             if (item.Status != "Scheduled" || (id.HasValue && item.StartsAt <= Now))
                 throw new BusinessException(409, "Không sửa buổi học đã bắt đầu, hủy hoặc hoàn thành.");
             var enrolled = id.HasValue ? await db.ClassRegistrations.CountAsync(r => r.SessionId == id && r.Status != "Cancelled", ct) : 0;
+            if (request.RoomId.HasValue && !await db.Rooms.AnyAsync(r => r.Id == request.RoomId.Value && r.IsActive, ct))
+                throw new BusinessException(404, "Không tìm thấy phòng tập đang hoạt động.");
+            if (request.RoomId.HasValue && await db.ClassSessions.AnyAsync(s => s.Id != (id ?? 0) && s.Status == "Scheduled" &&
+                s.RoomId == request.RoomId.Value && s.StartsAt < request.EndsAt.UtcDateTime && s.EndsAt > request.StartsAt.UtcDateTime, ct))
+                throw new BusinessException(409, "Phòng tập đã có buổi học khác trong khung giờ này.");
             if (request.Capacity < enrolled) throw new BusinessException(409, "Số chỗ không thể thấp hơn số học viên đã đăng ký.");
             if (await db.ClassSessions.AnyAsync(s => s.Id != (id ?? 0) && s.Status == "Scheduled" &&
                 s.CoachId == request.CoachId && s.StartsAt < request.EndsAt.UtcDateTime && s.EndsAt > request.StartsAt.UtcDateTime, ct))
@@ -92,9 +97,10 @@ public partial class ClassService
                 item.StartsAt != request.StartsAt.UtcDateTime ||
                 item.EndsAt != request.EndsAt.UtcDateTime ||
                 item.CoachId != request.CoachId ||
-                item.CancellationPolicyId != request.CancellationPolicyId);
+                item.CancellationPolicyId != request.CancellationPolicyId ||
+                item.RoomId != request.RoomId);
 
-            item.CoachId = request.CoachId; item.CancellationPolicyId = request.CancellationPolicyId;
+            item.CoachId = request.CoachId; item.CancellationPolicyId = request.CancellationPolicyId; item.RoomId = request.RoomId;
             item.StartsAt = request.StartsAt.UtcDateTime; item.EndsAt = request.EndsAt.UtcDateTime; item.Capacity = request.Capacity;
             if (!id.HasValue) db.ClassSessions.Add(item);
             await db.SaveChangesAsync(ct);
