@@ -11,8 +11,8 @@ public partial class ClassService
     {
         Validate(request);
         if (string.IsNullOrWhiteSpace(request.ClassName) || request.StartDate >= request.EndDate || request.EndDate.UtcDateTime <= Now ||
-            request.StartDate.Year < 2000 || decimal.Round(request.Price, 2) != request.Price)
-            throw new BusinessException(400, "Tên lớp, thời gian hoặc giá lớp không hợp lệ.");
+            request.StartDate.Year < 2000)
+            throw new BusinessException(400, "Tên lớp, thời gian không hợp lệ.");
         var resultId = await Transaction(async () =>
         {
             await Manager(actorId, ct);
@@ -32,7 +32,7 @@ public partial class ClassService
                     throw new BusinessException(409, "Không đổi bộ môn khi đã có học viên đăng ký.");
             }
             item.ClassName = request.ClassName.Trim(); item.SportId = request.SportId; item.CoachId = request.CoachId;
-            item.Price = request.Price; item.MaxCapacity = request.MaxCapacity; item.Schedule = request.Schedule?.Trim();
+            item.Price = 0; item.MaxCapacity = request.MaxCapacity; item.Schedule = request.Schedule?.Trim();
             item.StartDate = request.StartDate.UtcDateTime; item.EndDate = request.EndDate.UtcDateTime; item.IsActive = request.IsActive;
             if (!id.HasValue) db.SportClasses.Add(item);
             await db.SaveChangesAsync(ct);
