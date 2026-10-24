@@ -51,4 +51,25 @@ public class ProfileController : BaseApiController
             "Cập nhật thông tin cá nhân thành công."
         );
     }
+    /// <summary>
+    /// Gửi mã OTP xác nhận tới hòm thư của email mới
+    /// </summary>
+    [HttpPost("change-email/request-otp")]
+    public async Task<IActionResult> RequestChangeEmailOtp([FromBody] RequestChangeEmailOtpDTO dto)
+    {
+        var userId = ActorId();
+        await _profileService.SendChangeEmailOtpAsync(userId, dto);
+        return Success("Mã xác nhận đã được gửi tới hộp thư của email mới. Mã có hiệu lực trong 5 phút.");
+    }
+
+    /// <summary>
+    /// Xác thực mã OTP và hoàn tất đổi email tài khoản
+    /// </summary>
+    [HttpPost("change-email/verify-otp")]
+    public async Task<IActionResult> VerifyChangeEmailOtp([FromBody] VerifyChangeEmailOtpDTO dto)
+    {
+        var userId = ActorId();
+        var result = await _profileService.VerifyChangeEmailOtpAsync(userId, dto);
+        return Success(result, "Thay đổi email tài khoản thành công! Vui lòng dùng email mới để đăng nhập.");
+    }
 }

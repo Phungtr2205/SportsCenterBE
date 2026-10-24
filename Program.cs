@@ -20,6 +20,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Controllers
 builder.Services.AddControllers();
+builder.Services.AddMemoryCache();
 
 // Swagger / OpenAPI Documentation
 builder.Services.AddSwaggerGen(option =>
