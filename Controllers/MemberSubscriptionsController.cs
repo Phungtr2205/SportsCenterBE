@@ -112,4 +112,19 @@ public class MemberSubscriptionsController(ISubscriptionService subscriptions) :
     private int ActorId() => int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var id)
         ? id
         : throw new BusinessException(401, "A valid user identifier is required.");
+
+    /// <summary>
+    /// Xem trước thông tin và số tiền chênh lệch khi nâng cấp gói
+    /// </summary>
+    [HttpGet("upgrade-preview")]
+    [Authorize(Roles = "Member,Receptionist,Manager")]
+    [ProducesResponseType(typeof(ApiResponse<UpgradePreviewDTO>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetUpgradePreview(
+        [FromQuery] int targetPackageId,
+        [FromQuery] int? memberId,
+        CancellationToken cancellationToken)
+    {
+        var result = await subscriptions.GetUpgradePreviewAsync(ActorId(), memberId, targetPackageId, cancellationToken);
+        return Ok(ApiResponse<UpgradePreviewDTO>.Ok(result, "Lấy thông tin xem trước nâng cấp thành công."));
+    }
 }

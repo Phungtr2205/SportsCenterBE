@@ -25,3 +25,19 @@ public class PaymentReceiptDTO
     public DateTime PaymentDate { get; set; }
     public string? TransactionReference { get; set; }
 }
+
+public class UpgradePreviewDTO
+{
+    public bool CanUpgrade { get; set; }
+    public string Message { get; set; } = string.Empty;
+    public int? CurrentSubscriptionId { get; set; }
+    public string? CurrentPackageName { get; set; }
+    public decimal CurrentAgreedPrice { get; set; }
+    public int TargetPackageId { get; set; }
+    public string TargetPackageName { get; set; } = string.Empty;
+    public decimal TargetPackagePrice { get; set; }
+    public decimal DiscountAmount { get; set; } // Số tiền gói cũ được trừ
+    public decimal AmountToPay { get; set; }    // Số tiền chênh lệch cần trả
+    public DateTime? NewStartDate { get; set; }
+    public DateTime? NewEndDate { get; set; }
+}

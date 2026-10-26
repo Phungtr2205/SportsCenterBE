@@ -18,7 +18,7 @@ public class SubscriptionService : ISubscriptionService
         _context = context;
     }
 
-    // Đăng ký gói tập, ban đầu có trạng thái Pending.
+    // Đăng ký gói tập (hỗ trợ mua mới, mua song song gói PT, hoặc nâng cấp bù trừ chênh lệch)
     public async Task<SubscriptionDTO> CreateAsync(
         int actorId,
         int? memberId,
@@ -62,42 +62,71 @@ public class SubscriptionService : ISubscriptionService
             }
 
             var now = DateTime.UtcNow;
+            var targetPackageType = PackageTypeHelper.GetPackageType(package.PackageName, package.Description);
 
-            var alreadyRegistered = await _context.MemberSubscriptions
-                .AnyAsync(subscription =>
-                    subscription.MemberId == member.Id &&
-                    subscription.PackageId == package.Id &&
-                    (
-                        subscription.Status == "Pending" ||
-                        (
-                            subscription.Status == "Active" &&
-                            (
-                                subscription.EndDate == null ||
-                                subscription.EndDate > now
-                            )
-                        )
-                    ),
-                    cancellationToken);
-
-            if (alreadyRegistered)
+            // 1. Chặn nếu đang có đơn PENDING cho chính gói này
+            var hasPendingThisPackage = await _context.MemberSubscriptions
+                .AnyAsync(s => s.MemberId == member.Id && s.PackageId == package.Id && s.Status == "Pending", cancellationToken);
+            if (hasPendingThisPackage)
             {
-                throw new BusinessException(
-                    409,
-                    "Hội viên đã có đăng ký chờ thanh toán hoặc còn hiệu lực cho gói này.");
+                throw new BusinessException(409, "Hội viên đã có yêu cầu đăng ký chờ thanh toán cho gói này.");
+            }
+
+            // 2. Tìm các gói đang Active của hội viên
+            var activeSubs = await _context.MemberSubscriptions
+                .Include(s => s.Package)
+                .Where(s => s.MemberId == member.Id && s.Status == "Active" && (s.EndDate == null || s.EndDate > now))
+                .ToListAsync(cancellationToken);
+
+            // Tìm gói cùng loại (Standard hoặc PT) đang còn hiệu lực
+            var currentSameTypeSub = activeSubs.FirstOrDefault(s =>
+                PackageTypeHelper.GetPackageType(s.Package.PackageName, s.Package.Description) == targetPackageType);
+
+            decimal agreedPrice = package.Price;
+            string auditDetails;
+
+            if (currentSameTypeSub != null)
+            {
+                if (targetPackageType == PackageTypeHelper.Standard)
+                {
+                    // Đang có gói tập cơ bản (Standard) còn hạn -> NÂNG CẤP GÓI
+                    if (package.Price <= currentSameTypeSub.AgreedPrice)
+                    {
+                        throw new BusinessException(409,
+                            $"Hội viên đang sử dụng gói {currentSameTypeSub.Package.PackageName}. Chỉ có thể nâng cấp lên gói có giá trị cao hơn.");
+                    }
+
+                    // TÍNH TIỀN CHÊNH LỆCH BÙ THÊM
+                    agreedPrice = package.Price - currentSameTypeSub.AgreedPrice;
+                    auditDetails = $"Tạo yêu cầu NÂNG CẤP gói từ #{currentSameTypeSub.Id} ({currentSameTypeSub.Package.PackageName}) lên #{package.Id} ({package.PackageName}), số tiền chênh lệch: {agreedPrice:N0}đ.";
+                }
+                else
+                {
+                    // Gói PT: Chặn mua trùng chính gói PT đang hoạt động
+                    if (currentSameTypeSub.PackageId == package.Id)
+                    {
+                        throw new BusinessException(409, "Hội viên đã có gói PT này đang hoạt động.");
+                    }
+                    auditDetails = $"Tạo đăng ký gói PT {package.Id} ({package.PackageName}) cho hội viên {member.Id}.";
+                }
+            }
+            else
+            {
+                // Mua mới hoặc mua song song gói khác loại (ví dụ đang có Standard mua thêm gói PT)
+                auditDetails = $"Tạo đăng ký Pending cho hội viên {member.Id}, gói {package.Id} ({targetPackageType}).";
             }
 
             var subscription = new MemberSubscription
             {
                 MemberId = member.Id,
                 Package = package,
-                AgreedPrice = package.Price,
+                AgreedPrice = agreedPrice,
                 DurationInDays = package.DurationInDays,
                 CreatedAt = now,
                 Status = "Pending"
             };
 
             _context.MemberSubscriptions.Add(subscription);
-
             await _context.SaveChangesAsync(cancellationToken);
 
             AddAudit(
@@ -105,12 +134,116 @@ public class SubscriptionService : ISubscriptionService
                 "Create",
                 nameof(MemberSubscription),
                 subscription.Id,
-                $"Tạo đăng ký Pending cho hội viên {member.Id}, gói {package.Id}.");
+                auditDetails);
 
             await _context.SaveChangesAsync(cancellationToken);
 
             return ToDto(subscription, now);
         }, cancellationToken);
+    }
+
+    // Xem trước thông tin nâng cấp gói và tính tiền chênh lệch
+    public async Task<UpgradePreviewDTO> GetUpgradePreviewAsync(
+        int actorId,
+        int? memberId,
+        int targetPackageId,
+        CancellationToken cancellationToken = default)
+    {
+        var member = await ResolveMemberAsync(
+            actorId,
+            memberId,
+            cancellationToken,
+            requireActive: true);
+
+        var targetPackage = await _context.MembershipPackages
+            .SingleOrDefaultAsync(
+                p => p.Id == targetPackageId && p.IsActive,
+                cancellationToken)
+            ?? throw new BusinessException(404, "Không tìm thấy gói tập muốn nâng cấp.");
+
+        var now = DateTime.UtcNow;
+        var targetType = PackageTypeHelper.GetPackageType(targetPackage.PackageName, targetPackage.Description);
+
+        var activeSubs = await _context.MemberSubscriptions
+            .Include(s => s.Package)
+            .Where(s => s.MemberId == member.Id && s.Status == "Active" && (s.EndDate == null || s.EndDate > now))
+            .ToListAsync(cancellationToken);
+
+        var currentSameType = activeSubs.FirstOrDefault(s =>
+            PackageTypeHelper.GetPackageType(s.Package.PackageName, s.Package.Description) == targetType);
+
+        if (currentSameType == null)
+        {
+            return new UpgradePreviewDTO
+            {
+                CanUpgrade = false,
+                Message = "Hội viên chưa có gói cùng loại đang hoạt động. Sẽ đăng ký mới với giá đầy đủ.",
+                TargetPackageId = targetPackage.Id,
+                TargetPackageName = targetPackage.PackageName,
+                TargetPackagePrice = targetPackage.Price,
+                DiscountAmount = 0,
+                AmountToPay = targetPackage.Price,
+                NewStartDate = now,
+                NewEndDate = now.AddDays(targetPackage.DurationInDays)
+            };
+        }
+
+        if (targetType != PackageTypeHelper.Standard)
+        {
+            return new UpgradePreviewDTO
+            {
+                CanUpgrade = false,
+                Message = "Chính sách nâng cấp bù trừ hiện áp dụng cho gói hội viên tập chung (Standard). Gói PT được đăng ký song song độc lập.",
+                CurrentSubscriptionId = currentSameType.Id,
+                CurrentPackageName = currentSameType.Package.PackageName,
+                CurrentAgreedPrice = currentSameType.AgreedPrice,
+                TargetPackageId = targetPackage.Id,
+                TargetPackageName = targetPackage.PackageName,
+                TargetPackagePrice = targetPackage.Price,
+                DiscountAmount = 0,
+                AmountToPay = targetPackage.Price,
+                NewStartDate = now,
+                NewEndDate = now.AddDays(targetPackage.DurationInDays)
+            };
+        }
+
+        if (targetPackage.Price <= currentSameType.AgreedPrice)
+        {
+            return new UpgradePreviewDTO
+            {
+                CanUpgrade = false,
+                Message = $"Gói hiện tại ({currentSameType.Package.PackageName}) có giá trị cao hơn hoặc bằng gói muốn chọn. Chỉ có thể nâng cấp lên gói cao hơn.",
+                CurrentSubscriptionId = currentSameType.Id,
+                CurrentPackageName = currentSameType.Package.PackageName,
+                CurrentAgreedPrice = currentSameType.AgreedPrice,
+                TargetPackageId = targetPackage.Id,
+                TargetPackageName = targetPackage.PackageName,
+                TargetPackagePrice = targetPackage.Price,
+                DiscountAmount = 0,
+                AmountToPay = targetPackage.Price
+            };
+        }
+
+        var discount = currentSameType.AgreedPrice;
+        var amountToPay = targetPackage.Price - discount;
+        var newStartDate = currentSameType.StartDate ?? now;
+        var newEndDate = newStartDate.AddDays(targetPackage.DurationInDays);
+
+        return new UpgradePreviewDTO
+        {
+            CanUpgrade = true,
+            Message = $"Đủ điều kiện nâng cấp! Bạn chỉ cần thanh toán phần chênh lệch {amountToPay:N0}đ.",
+            CurrentSubscriptionId = currentSameType.Id,
+            CurrentPackageName = currentSameType.Package.PackageName,
+            CurrentAgreedPrice = currentSameType.AgreedPrice,
+            TargetPackageId = targetPackage.Id,
+            TargetPackageName = targetPackage.PackageName,
+            TargetPackagePrice = targetPackage.Price,
+            DiscountAmount = discount,
+            AmountToPay = amountToPay,
+            NewStartDate = newStartDate,
+            NewEndDate = newEndDate
+        };
     }
 
     // Xem các gói đã đăng ký của một hội viên.
@@ -311,10 +444,29 @@ public class SubscriptionService : ISubscriptionService
 
             _context.Payments.Add(payment);
 
-            subscription.StartDate = now;
-            subscription.EndDate = now.AddDays(
-                subscription.DurationInDays);
-            subscription.Status = "Active";
+            // Nếu là gói nâng cấp -> Kế thừa StartDate từ gói cũ và chuyển gói cũ sang Upgraded
+            var targetType = PackageTypeHelper.GetPackageType(subscription.Package.PackageName, subscription.Package.Description);
+            var oldSub = await _context.MemberSubscriptions
+                .Include(s => s.Package)
+                .Where(s => s.MemberId == subscription.MemberId && s.Id != subscription.Id && s.Status == "Active" && (s.EndDate == null || s.EndDate > now))
+                .FirstOrDefaultAsync(s => PackageTypeHelper.GetPackageType(s.Package.PackageName, s.Package.Description) == targetType, cancellationToken);
+
+            if (oldSub != null && targetType == PackageTypeHelper.Standard)
+            {
+                subscription.StartDate = oldSub.StartDate ?? now;
+                subscription.EndDate = (oldSub.StartDate ?? now).AddDays(subscription.DurationInDays);
+                subscription.Status = "Active";
+
+                oldSub.Status = "Upgraded";
+                AddAudit(actorId, "Update", nameof(MemberSubscription), oldSub.Id,
+                    $"Gói #{oldSub.Id} chuyển sang Upgraded sau khi nâng cấp lên gói #{subscription.Id}.");
+            }
+            else
+            {
+                subscription.StartDate = now;
+                subscription.EndDate = now.AddDays(subscription.DurationInDays);
+                subscription.Status = "Active";
+            }
 
             await _context.SaveChangesAsync(cancellationToken);
 
