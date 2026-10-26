@@ -9,4 +9,10 @@ public interface ISubscriptionService
     Task<SubscriptionDTO> GetByIdAsync(int actorId, int subscriptionId, CancellationToken cancellationToken = default);
     Task<SubscriptionDTO> CancelPendingAsync(int actorId, int subscriptionId, CancellationToken cancellationToken = default);
     Task<PaymentReceiptDTO> ConfirmPaymentAsync(int actorId, int subscriptionId, ConfirmPaymentRequestDTO request, CancellationToken cancellationToken = default);
+
+    Task<UpgradePreviewDTO> GetUpgradePreviewAsync(
+    int actorId,
+    int? memberId,
+    int targetPackageId,
+    CancellationToken cancellationToken = default);
 }

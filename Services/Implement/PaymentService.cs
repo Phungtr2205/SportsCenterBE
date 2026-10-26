@@ -513,9 +513,36 @@ public class PaymentService : IPaymentService
         payment.TransactionReference =
             $"INV-{now:yyyyMMdd}-{payment.Id:D8}";
 
-        subscription.Status = "Active";
-        subscription.StartDate = now;
-        subscription.EndDate = now.AddDays(subscription.DurationInDays);
+        // Kiểm tra xem đây có phải là giao dịch nâng cấp gói không
+        var targetType = PackageTypeHelper.GetPackageType(subscription.Package.PackageName, subscription.Package.Description);
+        var oldSub = await _context.MemberSubscriptions
+            .Include(s => s.Package)
+            .Where(s => s.MemberId == subscription.MemberId && s.Id != subscription.Id && s.Status == "Active" && (s.EndDate == null || s.EndDate > now))
+            .FirstOrDefaultAsync(s => PackageTypeHelper.GetPackageType(s.Package.PackageName, s.Package.Description) == targetType);
+
+        if (oldSub != null && targetType == PackageTypeHelper.Standard)
+        {
+            subscription.StartDate = oldSub.StartDate ?? now;
+            subscription.EndDate = (oldSub.StartDate ?? now).AddDays(subscription.DurationInDays);
+            subscription.Status = "Active";
+
+            oldSub.Status = "Upgraded";
+            _context.AuditLogs.Add(new AuditLog
+            {
+                UserId = actorId,
+                Action = "Update",
+                EntityName = nameof(MemberSubscription),
+                EntityId = oldSub.Id,
+                Details = $"Gói #{oldSub.Id} chuyển sang Upgraded sau khi nâng cấp lên gói #{subscription.Id} qua PayOS #{payment.Id}.",
+                Timestamp = now
+            });
+        }
+        else
+        {
+            subscription.StartDate = now;
+            subscription.EndDate = now.AddDays(subscription.DurationInDays);
+            subscription.Status = "Active";
+        }
 
         _context.AuditLogs.Add(new AuditLog
         {
