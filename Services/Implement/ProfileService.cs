@@ -190,9 +190,14 @@ public class ProfileService : IProfileService
         user.UpdatedAt = DateTime.UtcNow;
 
         // Thu hồi refresh token cũ
-        await _db.RefreshTokens
+        // Thu hồi refresh token cũ
+        var activeTokens = await _db.RefreshTokens
             .Where(t => t.UserId == userId && !t.IsRevoked)
-            .ExecuteUpdateAsync(s => s.SetProperty(t => t.IsRevoked, true));
+            .ToListAsync();
+        foreach (var token in activeTokens)
+        {
+            token.IsRevoked = true;
+        }
 
         await _db.SaveChangesAsync();
         _cache.Remove(cacheKey);
