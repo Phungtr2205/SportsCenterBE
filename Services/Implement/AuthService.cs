@@ -15,7 +15,7 @@ namespace SportsCenterAPI.Services.Implement;
 public class AuthService(
     AppDbContext context,
     IConfiguration configuration,
-    RedisOtpStore otpStore,
+    MemoryOtpStore otpStore,
     IEmailService emailService) : IAuthService
 {
     private sealed class PendingRegistration
@@ -116,7 +116,7 @@ public class AuthService(
         var email = NormalizeEmail(request.Email);
         var key = RegistrationKey(email);
 
-        // Redis kiểm tra số lần sai và xóa OTP đúng trong cùng một thao tác.
+        // Kiểm tra số lần sai và xóa OTP đúng trong cùng một thao tác.
         var pending = await otpStore.ConsumeAsync<PendingRegistration>(
             key, HashOtp(request.Otp))
             ?? throw InvalidOtpException();

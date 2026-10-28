@@ -36,7 +36,7 @@ Quyền thực tế được kiểm tra tại controller và các service tươn
 | Xác thực | JWT Bearer, refresh token |
 | Mật khẩu | BCrypt.Net-Next |
 | Email OTP | MailKit, MimeKit; mẫu HTML |
-| Lưu OTP | Redis, StackExchange.Redis; hết hạn sau 5 phút |
+| Lưu OTP | IMemoryCache; hết hạn sau 5 phút |
 | AI | GroqCloud Responses API qua HttpClient |
 | Thanh toán online | payOS SDK |
 | Biên lai PDF | QuestPDF |
@@ -69,7 +69,6 @@ SportsCenterBE/
 - [.NET SDK 10](https://dotnet.microsoft.com/download/dotnet/10.0).
 - Git.
 - PostgreSQL hoặc kết nối Supabase PostgreSQL.
-- Redis có xác thực để lưu OTP đăng ký và đặt lại mật khẩu.
 - Tài khoản SMTP hỗ trợ STARTTLS để thử chức năng OTP.
 - Thông tin tích hợp payOS để thử thanh toán online.
 - Visual Studio hỗ trợ .NET 10 hoặc IDE/editor tương đương.
@@ -86,13 +85,12 @@ dotnet restore
 
 Dự án đã có `UserSecretsId`. Khi phát triển local, có thể mở **Manage User Secrets** trên project trong Visual Studio và cấu hình theo mẫu dưới đây. Thay tất cả giá trị mẫu bằng thông tin của môi trường chạy.
 
-`appsettings.json` trong Git để trống các trường bí mật. Mỗi máy cần cấu hình User Secrets khi chạy Visual Studio hoặc `.env` khi chạy Docker; thông tin bí mật không được lấy từ file đã commit.
+`appsettings.json` trong Git để trống các trường bí mật. Mỗi máy cấu hình User Secrets khi chạy Visual Studio hoặc `dotnet run`, hoặc `.env` khi chạy Docker Compose. Không cần dịch vụ lưu OTP bên ngoài.
 
 ```json
 {
   "ConnectionStrings": {
-    "DefaultConnection": "Host=YOUR_POSTGRES_HOST;Port=5432;Database=postgres;Username=YOUR_DB_USER;Password=YOUR_DB_PASSWORD;SSL Mode=Require",
-    "Redis": "localhost:6379,password=YOUR_REDIS_PASSWORD,abortConnect=false"
+    "DefaultConnection": "Host=YOUR_POSTGRES_HOST;Port=5432;Database=postgres;Username=YOUR_DB_USER;Password=YOUR_DB_PASSWORD;SSL Mode=Require"
   },
   "Jwt": {
     "SecretKey": "REPLACE_WITH_A_RANDOM_SECRET_OF_AT_LEAST_32_BYTES",
@@ -145,22 +143,25 @@ Mở URL từ console và thêm `/swagger`. Với profile HTTPS hiện tại: `h
 
 ## 5. Chạy bằng Docker
 
+Nếu chưa có `.env`, copy `.env.example` thành `.env` và điền PostgreSQL, JWT, SMTP cùng các dịch vụ cần dùng. Nếu đã có `.env`, giữ file hiện tại và kiểm tra các giá trị trong đó.
+
 ```powershell
 Copy-Item .env.example .env
-# Điền PostgreSQL, JWT, SMTP, payOS và mật khẩu Redis trong .env.
 docker compose up -d --build
 ```
 
-Mở `http://localhost:8080/swagger`. Compose chạy API và Redis; PostgreSQL dùng chuỗi kết nối bạn cung cấp. Nếu PostgreSQL chạy trên máy Windows, host bên trong container là `host.docker.internal`. `.env` được Git bỏ qua; Docker không đưa appsettings, User Secrets hoặc file test vào image.
+Mở `http://localhost:8081/swagger`. Compose ánh xạ cổng `8081` trên máy vào cổng `8080` trong container và chỉ chạy backend; OTP lưu trong bộ nhớ của backend. Database vẫn dùng PostgreSQL/Supabase theo chuỗi kết nối được cấu hình. Nếu PostgreSQL chạy trên máy Windows, dùng host `host.docker.internal` trong container.
+
+Compose mặc định đặt `Database__InitializeOnStartup=false` để không tự chạy migration hoặc seed lên database hiện có. Chỉ đặt thành `true` trong `.env` khi chủ động muốn chạy bước này. Backend vẫn cần chuỗi kết nối database để xử lý API.
 
 ```powershell
 docker compose logs -f api
 docker compose down
 ```
 
-Redis yêu cầu mật khẩu, dùng được trong mạng Compose và qua `127.0.0.1:6379` trên máy local. Khi chạy API bằng Visual Studio/`dotnet run`, cấu hình `ConnectionStrings:Redis` trong User Secrets thành `localhost:6379,password=YOUR_REDIS_PASSWORD,abortConnect=false`, dùng cùng `REDIS_PASSWORD` trong `.env`. ASP.NET Core không tự đọc file `.env`; Compose đọc file này khi tạo container. OTP tồn tại khi chỉ khởi động lại API, nhưng mất khi khởi động lại Redis do cấu hình không lưu ra đĩa. Với Redis bên ngoài, cấu hình `ConnectionStrings__Redis` theo nhà cung cấp, bật `ssl=true` nếu dịch vụ yêu cầu TLS.
+`.env` không được commit hoặc đưa vào image. ASP.NET Core không tự đọc `.env`; Compose nạp các biến vào container. Khi bấm F5 trong Visual Studio, dùng User Secrets như phần chạy local. OTP mất khi restart hoặc tạo lại container; cấu hình này dành cho một instance backend.
 
-Dockerfile đọc biến `PORT` (mặc định `8080`) để chạy trên Render. Khi tạo Web Service, chọn Docker, thêm các biến trong `.env.example`, đặt `OpenApi__Enabled=true` và cấu hình `ConnectionStrings__Redis` đến Redis nội bộ của môi trường deploy. Compose dùng để chạy local, không tự được Render triển khai. `ReturnUrl`/`CancelUrl` của payOS cần trỏ đến frontend đang chạy.
+Dockerfile hỗ trợ biến `PORT` (mặc định `8080`). Nếu deploy bằng Docker trên Render, cấu hình các biến trong `.env.example` trên service và đặt `OpenApi__Enabled=true` nếu cần Swagger. `ReturnUrl`/`CancelUrl` của payOS cần trỏ đến frontend đang chạy.
 
 ## 6. Hai flow AI
 
@@ -171,7 +172,7 @@ dotnet user-secrets set "AI:ApiKey" "YOUR_GROQ_API_KEY"
 dotnet user-secrets set "AI:Model" "openai/gpt-oss-20b"
 ```
 
-Thay giá trị mẫu bằng key thật. Khi chạy Docker hoặc Render, dùng `AI__ApiKey` và `AI__Model` thay cho User Secrets. Model `openai/gpt-oss-20b` có trong [danh sách model Groq](https://console.groq.com/docs/models); tên có `openai/` nhưng request gửi tới GroqCloud. Responses API của Groq hiện ở beta. Không gửi key vào Swagger hoặc commit vào repo.
+Thay giá trị mẫu bằng key thật. Khi deploy, dùng `AI__ApiKey` và `AI__Model` thay cho User Secrets. Model `openai/gpt-oss-20b` có trong [danh sách model Groq](https://console.groq.com/docs/models); tên có `openai/` nhưng request gửi tới GroqCloud. Responses API của Groq hiện ở beta. Không gửi key vào Swagger hoặc commit vào repo.
 
 Đăng nhập qua `POST /api/Auth/login`, lấy `token`, nhập vào nút **Authorize** trong Swagger.
 
@@ -201,8 +202,10 @@ Service đọc tối đa 20 gói đang mở, 5 đăng ký gói gần nhất và 
 
 Hai endpoint dùng GroqCloud Responses API với `store=false`. Dữ liệu mục tiêu, giáo án/nhận xét, điểm danh hoặc lịch/gói cá nhân có thể được gửi đến GroqCloud theo endpoint; không gửi mật khẩu hay JWT. Chưa cấu hình AI trả `503`; sai quyền trả `403`; học viên không thuộc phạm vi trả `404`; phản hồi AI lỗi trả `502`; hết thời gian chờ trả `504`. Hạn mức và phí của dịch vụ AI phụ thuộc tài khoản GroqCloud.
 
-## 7. OTP dùng Redis
+## 7. OTP lưu trong bộ nhớ
 
-Endpoint và JSON đăng ký/quên mật khẩu giữ nguyên. Mỗi OTP là một Redis hash gồm mã đã băm SHA-256, dữ liệu chờ và số lần sai; TTL 300 giây. Mật khẩu đăng ký được băm BCrypt trước khi lưu dữ liệu chờ. Lua script kiểm tra và xóa OTP cùng lúc, nên hai request không thể sử dụng thành công cùng một mã. Sai 5 lần hoặc hết hạn phải xin mã mới; gửi lại thay dữ liệu chờ cũ.
+Endpoint và JSON đăng ký/quên mật khẩu giữ nguyên. `MemoryOtpStore` dùng `IMemoryCache` để lưu mã đã băm SHA-256, dữ liệu chờ và số lần sai trong 5 phút. Mật khẩu đăng ký được băm BCrypt trước khi lưu dữ liệu chờ. Kiểm tra mã và xóa dữ liệu được bảo vệ bằng khóa chung trong một singleton, nên các request đồng thời trong cùng backend không thể dùng thành công cùng một mã.
 
-Redis không sẵn sàng trả `503`, không chuyển sang bộ nhớ riêng từng API. OTP đúng được dùng một lần trước khi tạo tài khoản/đổi mật khẩu; nếu bước database sau đó lỗi, cần xin OTP mới.
+Sai 5 lần hoặc hết hạn phải xin mã mới; gửi lại thay dữ liệu chờ cũ và đặt lại thời hạn. OTP đúng được dùng một lần trước khi tạo tài khoản/đổi mật khẩu; nếu bước database sau đó lỗi, cần xin OTP mới.
+
+Chạy trực tiếp bằng Visual Studio hoặc `dotnet run`. OTP mất khi khởi động lại backend; cấu hình này dành cho một instance backend. Khi triển khai nhiều instance, cần thay kho OTP bằng một kho dùng chung.

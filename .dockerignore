@@ -5,6 +5,7 @@
 **/.idea
 .git
 TestResults
+tests
 work
 outputs
 **/node_modules
