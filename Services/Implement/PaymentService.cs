@@ -395,6 +395,7 @@ public class PaymentService : IPaymentService
 
         var payment = await _context.Payments
             .Include(p => p.Subscription)
+            .ThenInclude(s => s!.Package)
             .Include(p => p.Member)
                 .ThenInclude(m => m.User)
             .SingleAsync(p => p.Id == paymentId);
