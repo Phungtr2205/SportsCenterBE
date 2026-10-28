@@ -1,4 +1,8 @@
 <Solution>
+  <Folder Name="/.github/" />
+  <Folder Name="/.github/workflows/">
+    <File Path="ci.yml" />
+  </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/SportsCenterAPI.Tests/SportsCenterAPI.Tests.csproj" />
   </Folder>

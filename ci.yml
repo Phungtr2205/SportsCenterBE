@@ -1,0 +1,29 @@
+name: .NET CI
+
+on:
+  push:
+    branches: [ master, unittest2710, 'nguyen*' ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout mã nguồn
+      uses: actions/checkout@v4
+
+    - name: Cài đặt .NET SDK 10
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '10.0.x'
+
+    - name: Restore dependencies
+      run: dotnet restore SportsCenterAPI.slnx
+
+    - name: Build Solution
+      run: dotnet build SportsCenterAPI.slnx --no-restore
+
+    - name: Chạy tự động 12 Unit Tests
+      run: dotnet test SportsCenterAPI.slnx --no-build --verbosity normal
