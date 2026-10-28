@@ -516,10 +516,15 @@ public class PaymentService : IPaymentService
 
         // Kiểm tra xem đây có phải là giao dịch nâng cấp gói không
         var targetType = PackageTypeHelper.GetPackageType(subscription.Package.PackageName, subscription.Package.Description);
-        var oldSub = await _context.MemberSubscriptions
+        // 1. Lấy danh sách các gói Active của hội viên từ DB về RAM
+        var activeSubs = await _context.MemberSubscriptions
             .Include(s => s.Package)
             .Where(s => s.MemberId == subscription.MemberId && s.Id != subscription.Id && s.Status == "Active" && (s.EndDate == null || s.EndDate > now))
-            .FirstOrDefaultAsync(s => PackageTypeHelper.GetPackageType(s.Package.PackageName, s.Package.Description) == targetType);
+            .ToListAsync();
+
+        // 2. Lọc loại gói trong bộ nhớ C# (Client Evaluation)
+        var oldSub = activeSubs.FirstOrDefault(s =>
+            s.Package != null && PackageTypeHelper.GetPackageType(s.Package.PackageName, s.Package.Description) == targetType);
 
         if (oldSub != null && targetType == PackageTypeHelper.Standard)
         {
