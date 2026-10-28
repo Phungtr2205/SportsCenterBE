@@ -12,7 +12,6 @@ using SportsCenterAPI.Settings;
 using System.Reflection.Metadata;
 using System.Security.Claims;
 using System.Text;
-using StackExchange.Redis;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -155,21 +154,7 @@ builder.Services.AddScoped<IClassService, ClassService>();
 builder.Services.Configure<MailSettings>(
 builder.Configuration.GetSection("MailSettings"));
 builder.Services.AddScoped<IEmailService, EmailService>();
-builder.Services.AddSingleton<IConnectionMultiplexer>(provider =>
-{
-    var configuration = provider.GetRequiredService<IConfiguration>();
-    var connection = configuration.GetConnectionString("Redis")
-        ?? throw new InvalidOperationException("Chưa cấu hình ConnectionStrings:Redis.");
-    var options = ConfigurationOptions.Parse(connection);
-    options.AbortOnConnectFail = false;
-    options.ConnectTimeout = 3000;
-    options.ConnectRetry = 1;
-    options.AsyncTimeout = 5000;
-    options.SyncTimeout = 5000;
-    options.BacklogPolicy = BacklogPolicy.FailFast;
-    return ConnectionMultiplexer.Connect(options);
-});
-builder.Services.AddSingleton<RedisOtpStore>();
+builder.Services.AddSingleton<MemoryOtpStore>();
 builder.Services.AddHttpClient<IAIService, AIService>(client =>
 {
     client.Timeout = TimeSpan.FromSeconds(60);
