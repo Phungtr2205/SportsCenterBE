@@ -1,68 +1,291 @@
+# Sports Center Management System — Backend
 
-Thanh toán có lỗi tiềm ẩn: gọi hàm C# trong truy vấn EF chưa ánh xạ SQL; nhánh payOS còn đọc subscription.Package chưa được nạp.   cái này nè 
+Backend cho hệ thống quản lý trung tâm thể thao, xây dựng bằng **ASP.NET Core Web API (.NET 10)**. Hệ thống phục vụ quản lý tài khoản, hội viên, gói tập, lớp học, lịch học, thanh toán và báo cáo; đồng thời hỗ trợ điểm danh, giáo án và tư vấn AI.
 
-Wednesday 11:45 AM
-Đúng chỗ đó. Mình vừa kiểm chứng lại, không gọi payOS hay kết nối database:
+Repository: [phcgnguyen19/SportsCenterBE](https://github.com/phcgnguyen19/SportsCenterBE).
 
-Hàm C# trong truy vấn EF: GetPackageType(...) đang nằm trong điều kiện FirstOrDefaultAsync. Npgsql báo “could not be translated”. Cách sửa là lọc các gói liên quan bằng SQL, lấy ToListAsync(), rồi phân loại trên danh sách.
+## Mục lục
 
-Chưa nạp Package: query đọc lại giao dịch chỉ có:
+- [Kiến trúc hiện tại](#kiến-trúc-hiện-tại)
+- [Phạm vi và vai trò](#phạm-vi-và-vai-trò)
+- [Công nghệ](#công-nghệ)
+- [Cấu trúc repository](#cấu-trúc-repository)
+- [Yêu cầu môi trường](#yêu-cầu-môi-trường)
+- [Khởi chạy local](#khởi-chạy-local)
+- [Chạy bằng Docker Compose](#chạy-bằng-docker-compose)
+- [Cấu hình](#cấu-hình)
+- [API và Swagger](#api-và-swagger)
+- [Luồng nghiệp vụ](#luồng-nghiệp-vụ)
+- [Dữ liệu và OTP](#dữ-liệu-và-otp)
+- [Kiểm thử](#kiểm-thử)
+- [Quy ước phát triển](#quy-ước-phát-triển)
+- [Giới hạn hiện tại](#giới-hạn-hiện-tại)
 
-.Include(p => p.Subscription)
-nhưng phía sau dùng subscription.Package.PackageName. Cần thêm:
+## Kiến trúc hiện tại
 
-.Include(p => p.Subscription)
-    .ThenInclude(s => s!.Package)
-Kiểm tra SQL xác nhận query hiện tại chưa nạp bảng gói tập.
+Dự án là **layered monolith**: các chức năng nằm trong một ứng dụng Web API và được triển khai chung. Cấu trúc chính là `Controller → Service → AppDbContext → PostgreSQL`.
 
-Hai điểm này nằm trong snapshot master b48088a, sau phần nâng cấp gói. Tiền vẫn có thể chuyển về ngân hàng, còn bước cập nhật gói trong API mới là nơi cần kiểm tra. Mình chưa xác nhận API bạn đang chạy có đúng snapshot này không và chưa sửa code.
+```text
+Web / Mobile / Swagger
+          |
+          v
+  SportsCenterAPI (.NET 10)
+  ├── Controllers            Nhận request, phân quyền, trả response
+  ├── Services               Xử lý nghiệp vụ
+  └── AppDbContext           Truy cập dữ liệu bằng EF Core
+          |
+          +----> PostgreSQL / Supabase
+          +----> SMTP: gửi email và OTP
+          +----> payOS: tạo link và đồng bộ thanh toán
+          +----> GroqCloud: tư vấn và gợi ý bài tập
+```
 
-Wednesday 11:48 AM
-User attachment
-setting gi
+Một số controller vẫn truy cập `AppDbContext` trực tiếp, chẳng hạn phần xuất biên lai và xem audit log. Việc chia tầng hiện chưa được áp dụng đồng đều cho mọi endpoint.
 
-Wednesday 11:56 AM
-Đây là cấu hình Ponytail, bạn để như sau là được:
+`PaymentService` là lớp nghiệp vụ bên trong API. Docker Compose hiện chỉ chạy **một container API**; PostgreSQL/Supabase là kết nối được cấu hình bên ngoài. OTP dùng bộ nhớ của API, không cần Redis ở phiên bản hiện tại.
 
-Mục	Giá trị
-Task board	true nếu muốn dùng bảng theo dõi task
-Webhook URL	Để trống nếu không gửi thông báo ra dịch vụ ngoài
-Webhook token	Để trống khi không dùng webhook
-Send task names	Giữ false — không gửi tên task qua webhook
-Sau đó chọn Save configuration và nhấn Enter.
+## Phạm vi và vai trò
 
-Wednesday 11:56 AM
-User attachment
-Activity
-Ảnh báo repo microsoft/playwright-cli không có file marketplace mà Claude Code yêu cầu. Mình sẽ kiểm tra README để chỉ bạn cách cài đúng.
+| Flow | Nội dung | Phạm vi đề tài |
+|---|---|---|
+| 1 | Tài khoản, hội viên, nhân viên, hồ sơ và gói thành viên | Bắt buộc |
+| 2 | Lớp học, lịch học, phòng tập, đặt và hủy đăng ký | Bắt buộc |
+| 3 | Thanh toán, lịch sử giao dịch, biên lai PDF và báo cáo | Bắt buộc |
+| 4 | Check-in trung tâm, điểm danh lớp, giáo án và kết quả tập luyện | Tùy chọn; đã có các API hỗ trợ |
+| 5 | AI gợi ý bài tập theo mục tiêu, trình độ và dữ liệu tập luyện | Tùy chọn; đã có API tư vấn |
+| 6 | AI giải đáp câu hỏi về tập luyện, gói tập và lịch cá nhân | Tùy chọn; đã có API tư vấn |
 
-Searched the web for https://github.com/microsoft/playwright-cli
+Bảng trên mô tả chức năng có trong source; không thay thế kết quả kiểm thử toàn bộ nghiệp vụ.
 
-# VeggiePal Backend Backend microservice cho VeggiePal / VeganApp — nền tảng cộ…
-doc cai readme roi lam giong giong duoc ko ?
+| Vai trò | Giá trị trong code | Chức năng chính |
+|---|---|---|
+| Quản lý trung tâm | `Manager` | Quản lý nhân viên, hội viên, danh mục, gói tập, lớp, phòng, lịch, báo cáo và audit log |
+| Lễ tân | `Receptionist` | Tiếp nhận hội viên tại quầy, hỗ trợ đăng ký gói/lớp, ghi nhận thanh toán và check-in |
+| Huấn luyện viên | `Coach` | Xem lịch dạy, danh sách học viên, điểm danh và quản lý giáo án |
+| Hội viên | `Member` | Quản lý hồ sơ, đăng ký gói, thanh toán, đặt/hủy lớp và xem thông tin tập luyện |
 
-11:57 AM
-Được, mình đã viết xong README SportsCenterBE theo bố cục mẫu, đối chiếu với master mới nhất.
+Quyền cụ thể phụ thuộc từng endpoint và kiểm tra trong service. `UserRoles.FrontDesk` là nhóm quyền gồm `Manager,Receptionist`, không phải một vai trò riêng trong database.
 
-👉 Mở README.md
+## Công nghệ
 
-Có kiến trúc, 6 flow, vai trò, cách chạy local/Docker, cấu hình, API và kiểm thử. Đã cập nhật đúng: OTP dùng bộ nhớ, Compose chỉ chạy API.
+| Thành phần | Công nghệ |
+|---|---|
+| Backend | C#, ASP.NET Core Web API, .NET 10 |
+| Database | PostgreSQL; có thể kết nối Supabase PostgreSQL |
+| Truy cập dữ liệu | Entity Framework Core 10, Npgsql, EF migrations |
+| Xác thực | JWT Bearer, refresh token, BCrypt.Net-Next |
+| OTP | `IMemoryCache`, `MemoryOtpStore` |
+| Email | MailKit, MimeKit, SMTP STARTTLS |
+| Thanh toán | payOS SDK |
+| Biên lai PDF | QuestPDF |
+| AI | GroqCloud Responses API qua `HttpClient` |
+| Tài liệu API | Swagger UI, Swashbuckle, XML comments |
+| Kiểm thử | xUnit, Moq, EF Core InMemory, Coverlet |
+| Đóng gói | Docker, Docker Compose |
+| CI | GitHub Actions: restore, build và test solution |
 
-Bạn có thể dùng file này thay README hiện tại. Mình chưa sửa hoặc push vào repo.
+## Cấu trúc repository
 
+```text
+SportsCenterBE/
+├── Controllers/                 # HTTP endpoints, phân quyền
+├── Services/
+│   ├── Interface/               # Hợp đồng service
+│   └── Implement/               # Xử lý nghiệp vụ
+├── DTOs/                        # Request và response theo chức năng
+├── Models/                      # Entity database
+├── Data/                        # AppDbContext, DbSeeder
+├── Migrations/                  # EF Core migrations
+├── Enums/                       # Trạng thái nghiệp vụ
+├── Helpers/                     # JWT, mật khẩu, phân trang, lỗi nghiệp vụ...
+├── Middleware/                  # Xử lý exception tập trung
+├── Settings/                    # Cấu hình SMTP, payOS
+├── Properties/                  # Profile chạy local
+├── tests/SportsCenterAPI.Tests/  # Unit tests
+├── .github/workflows/           # GitHub Actions
+├── wwwroot/                     # Thư mục nội dung tĩnh
+├── .env.example                 # Mẫu cấu hình cho Compose
+├── .dockerignore
+├── .gitignore
+├── Dockerfile
+├── compose.yaml
+├── Program.cs                   # DI, authentication, middleware, startup
+├── SportsCenterAPI.csproj
+└── SportsCenterAPI.slnx
+```
 
-Edited README.md
-+416
--0
-12:03 PM
-làm ko hết hả
+## Yêu cầu môi trường
 
-12:12 PM
-Working for 4s
+- Git và .NET SDK 10 khi chạy trực tiếp hoặc phát triển code.
+- PostgreSQL hoặc chuỗi kết nối đến Supabase PostgreSQL.
+- Docker Desktop/Engine có Compose nếu chọn chạy bằng container.
+- SMTP để kiểm thử gửi OTP; thông tin payOS để kiểm thử thanh toán online; API key GroqCloud để dùng AI.
 
+| Cách chạy | Địa chỉ Swagger |
+|---|---|
+| Profile `https` | `https://localhost:7182/swagger` |
+| Profile `http` | `http://localhost:5212/swagger` |
+| Docker Compose | `http://localhost:8081/swagger` |
 
+Các cổng tương ứng phải đang trống. Docker Compose không yêu cầu cài .NET SDK trên máy host vì image SDK thực hiện build.
 
-outputs/sportscenter-readme/README.md
+## Khởi chạy local
+
+### 1. Lấy source
+
+```powershell
+git clone https://github.com/phcgnguyen19/SportsCenterBE.git
+cd SportsCenterBE
+dotnet restore SportsCenterAPI.slnx
+```
+
+### 2. Cấu hình User Secrets
+
+Dự án đã có `UserSecretsId`. Trong Visual Studio, chọn **Manage User Secrets** trên project `SportsCenterAPI`, rồi điền cấu hình sau bằng giá trị của môi trường chạy:
+
+```json
+{
+  "ConnectionStrings": {
+    "DefaultConnection": "Host=YOUR_POSTGRES_HOST;Port=5432;Database=postgres;Username=YOUR_DB_USER;Password=YOUR_DB_PASSWORD;SSL Mode=Require"
+  },
+  "Database": {
+    "InitializeOnStartup": false
+  },
+  "Jwt": {
+    "SecretKey": "REPLACE_WITH_A_RANDOM_SECRET_OF_AT_LEAST_32_BYTES",
+    "Issuer": "SportsCenterAPI",
+    "Audience": "SportsCenterClient",
+    "ExpireMinutes": 15,
+    "RefreshTokenExpireDays": 7
+  },
+  "MailSettings": {
+    "Host": "smtp.gmail.com",
+    "Port": 587,
+    "SenderName": "Sports Center",
+    "SenderEmail": "YOUR_SENDER_EMAIL",
+    "Password": "YOUR_SMTP_APP_PASSWORD"
+  },
+  "PayOS": {
+    "ClientId": "YOUR_PAYOS_CLIENT_ID",
+    "ApiKey": "YOUR_PAYOS_API_KEY",
+    "ChecksumKey": "YOUR_PAYOS_CHECKSUM_KEY",
+    "ReturnUrl": "http://localhost:3000/payment/success",
+    "CancelUrl": "http://localhost:3000/payment/cancel"
+  },
+  "AI": {
+    "ApiKey": "",
+    "Model": "openai/gpt-oss-20b"
+  }
+}
+```
+
+Với Supabase, lấy host, port và username từ phần **Connect** của đúng project. API dùng chuỗi kết nối định dạng **Npgsql** như ví dụ, không dùng nguyên URI `postgresql://...` làm giá trị cấu hình.
+
+`InitializeOnStartup=false` dành cho database đã được chuẩn bị. Với database local mới, đặt `true` để ứng dụng chạy migration và seed lúc khởi động. Khi không khai báo khóa này, code hiện mặc định `true`; kiểm tra cấu hình trước khi trỏ vào database dùng chung.
+
+User Secrets được nạp khi chạy môi trường `Development`. File `.env` của Docker Compose không tự được đọc khi bấm F5 hoặc dùng `dotnet run`.
+
+### 3. Build và chạy
+
+```powershell
+dotnet build SportsCenterAPI.slnx
+dotnet dev-certs https --trust
+dotnet run --project SportsCenterAPI.csproj --launch-profile https
+```
+
+Mở `https://localhost:7182/swagger`. Có thể dùng profile HTTP nếu không cần HTTPS local:
+
+```powershell
+dotnet run --project SportsCenterAPI.csproj --launch-profile http
+```
+
+## Chạy bằng Docker Compose
+
+Tại thư mục gốc repo, nếu chưa có `.env`:
+
+```powershell
+Copy-Item .env.example .env
+```
+
+Điền các giá trị trong `.env`, sau đó chạy:
+
+```powershell
+docker compose up -d --build
+docker compose ps
+docker compose logs -f api
+```
+
+Mở `http://localhost:8081/swagger`. Compose ánh xạ `127.0.0.1:8081` của máy host vào cổng `8080` của container. Database vẫn là PostgreSQL/Supabase được chỉ định trong `.env`. Nếu PostgreSQL chạy trên máy host Docker Desktop, có thể dùng `host.docker.internal` làm host kết nối.
+
+Compose mặc định `Database__InitializeOnStartup=false`. Chỉ bật `true` khi muốn chạy migration và seed. Để dừng container:
+
+```powershell
+docker compose down
+```
+
+Dockerfile dùng build nhiều giai đoạn, chạy ứng dụng bằng user không phải root và hỗ trợ biến `PORT` (mặc định `8080`). Khi deploy Docker lên hosting như Render, khai báo biến môi trường trên service; `.env` local không tự được chuyển lên hosting.
+
+## Cấu hình
+
+ASP.NET Core dùng `:` trong cấu hình JSON/User Secrets và `__` trong biến môi trường. Ví dụ `AI:ApiKey` tương ứng `AI__ApiKey`.
+
+| Biến môi trường | Ý nghĩa |
+|---|---|
+| `ConnectionStrings__DefaultConnection` | Chuỗi kết nối PostgreSQL/Npgsql |
+| `Database__InitializeOnStartup` | Bật/tắt migration và seed khi khởi động |
+| `Jwt__SecretKey` | Secret ký và xác thực JWT |
+| `Jwt__Issuer`, `Jwt__Audience` | Issuer và audience hợp lệ |
+| `Jwt__ExpireMinutes` | Thời hạn access token |
+| `Jwt__RefreshTokenExpireDays` | Thời hạn refresh token |
+| `MailSettings__Host`, `MailSettings__Port` | SMTP host và cổng STARTTLS |
+| `MailSettings__SenderName`, `MailSettings__SenderEmail`, `MailSettings__Password` | Thông tin gửi mail |
+| `PayOS__ClientId`, `PayOS__ApiKey`, `PayOS__ChecksumKey` | Thông tin tích hợp payOS |
+| `PayOS__ReturnUrl`, `PayOS__CancelUrl` | Trang frontend sau thanh toán/hủy |
+| `AI__ApiKey`, `AI__Model` | API key và model GroqCloud |
+| `OpenApi__Enabled` | Bật Swagger ngoài môi trường Development |
+| `ASPNETCORE_ENVIRONMENT` | Môi trường chạy ASP.NET Core |
+| `PORT` | Cổng lắng nghe khi dùng Dockerfile |
+
+Không commit `.env`, mật khẩu, API key hay token thật. Thành viên mới cần tự cấu hình User Secrets hoặc `.env`; chỉ pull source chưa đủ để kết nối các dịch vụ.
+
+CORS hiện cho phép frontend `http://localhost:3000` trong `Program.cs`. Khi đổi domain frontend, cập nhật cấu hình này. SMTP hiện dùng STARTTLS; môi trường hosting phải cho phép kết nối đến dịch vụ SMTP được chọn.
+
+## API và Swagger
+
+Swagger là nơi xem đầy đủ endpoint, DTO, tham số và chú thích. Tài liệu OpenAPI nằm tại `/swagger/v1/swagger.json` khi Swagger được bật.
+
+### Xác thực
+
+Đăng nhập bằng `POST /api/Auth/login`, lấy trường `token`, chọn **Authorize** và nhập JWT trực tiếp, không thêm tiền tố `Bearer`. Swagger tự gắn header `Authorization`.
+
+| Method | Endpoint | Mô tả |
+|---|---|---|
+| POST | `/api/Auth/send-register-otp` | Gửi OTP đăng ký với thông tin tài khoản |
+| POST | `/api/Auth/verify-register-otp` | Xác thực OTP và tạo hội viên |
+| POST | `/api/Auth/login` | Nhận access token và refresh token |
+| POST | `/api/Auth/request-reset-password` | Yêu cầu OTP đặt lại mật khẩu |
+| POST | `/api/Auth/verify-reset-password` | Xác thực OTP và đặt mật khẩu mới |
+| POST | `/api/Auth/refresh-token` | Cấp access token mới và thay refresh token |
+| POST | `/api/Auth/logout` | Thu hồi refresh token |
+
+Refresh token được lưu dạng băm trong database. Khi refresh thành công, client thay token cũ bằng token mới; thời điểm hết hạn của phiên không được kéo dài. Đăng xuất thu hồi refresh token; access token đã cấp vẫn có thể còn hạn. API kiểm tra trạng thái tài khoản và vai trò hiện tại khi xác thực JWT.
+
+### Nhóm API nghiệp vụ
+
+| Nhóm | Đường dẫn chính | Chức năng |
+|---|---|---|
+| Hồ sơ | `/api/profile` | Xem/sửa hồ sơ, đổi email qua OTP |
+| Nhân viên | `/api/users/staff` | Danh sách, tạo, đổi vai trò, ngừng hoạt động |
+| Hội viên | `/api/members` | Đăng ký tại quầy, xem thông tin hội viên |
+| Gói tập | `/api/membership-packages` | Xem gói công khai; quản lý gói |
+| Đăng ký gói | `/api/member-subscriptions` | Tạo đăng ký, xem gói, hủy chờ thanh toán, xem trước nâng cấp |
+| Bộ môn và HLV | `/api/sports`, `/api/coaches` | Quản lý danh mục, thông tin HLV |
+| Lớp học | `/api/classes` | Quản lý lớp, tạo và cập nhật buổi học |
+| Buổi học | `/api/class-sessions` | Tìm lịch, lịch dạy, đặt chỗ, danh sách học viên, hủy/hoàn tất buổi |
+| Đăng ký lớp | `/api/class-registrations` | Lịch đã đăng ký, hủy, check-in và đánh giá |
+| Chính sách hủy | `/api/cancellation-policies` | Quản lý thời hạn hủy |
+| Phòng tập | `/api/Rooms` | Quản lý phòng, kiểm tra lịch trống |
+| Thanh toán | `/api/payments` | Tạo, xem lịch sử/chi tiết, sync, hủy, webhook, xuất PDF |
 | Báo cáo | `/api/Reports` | Tổng quan, doanh thu và tình trạng lớp |
 | Check-in trung tâm | `/api/GymCheckIn` | QR, check-in/out và lịch sử |
 | Điểm danh lớp | `/api/Attendances` | Điểm danh theo buổi, xem lịch sử cá nhân |
