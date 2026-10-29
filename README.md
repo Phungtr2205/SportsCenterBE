@@ -35,7 +35,7 @@ Web / Mobile / Swagger
   └── AppDbContext           Truy cập dữ liệu bằng EF Core
           |
           +----> PostgreSQL / Supabase
-          +----> SMTP: gửi email và OTP
+          +----> SendGrid HTTPS API: gửi email và OTP
           +----> payOS: tạo link và đồng bộ thanh toán
           +----> GroqCloud: tư vấn và gợi ý bài tập
 ```
@@ -75,7 +75,7 @@ Quyền cụ thể phụ thuộc từng endpoint và kiểm tra trong service. `
 | Truy cập dữ liệu | Entity Framework Core 10, Npgsql, EF migrations |
 | Xác thực | JWT Bearer, refresh token, BCrypt.Net-Next |
 | OTP | `IMemoryCache`, `MemoryOtpStore` |
-| Email | MailKit, MimeKit, SMTP STARTTLS |
+| Email | SendGrid Web API qua HttpClient (HTTPS) |
 | Thanh toán | payOS SDK |
 | Biên lai PDF | QuestPDF |
 | AI | GroqCloud Responses API qua `HttpClient` |
@@ -99,7 +99,7 @@ SportsCenterBE/
 ├── Enums/                       # Trạng thái nghiệp vụ
 ├── Helpers/                     # JWT, mật khẩu, phân trang, lỗi nghiệp vụ...
 ├── Middleware/                  # Xử lý exception tập trung
-├── Settings/                    # Cấu hình SMTP, payOS
+├── Settings/                    # Cấu hình email, payOS
 ├── Properties/                  # Profile chạy local
 ├── tests/SportsCenterAPI.Tests/  # Unit tests
 ├── .github/workflows/           # GitHub Actions
@@ -119,7 +119,7 @@ SportsCenterBE/
 - Git và .NET SDK 10 khi chạy trực tiếp hoặc phát triển code.
 - PostgreSQL hoặc chuỗi kết nối đến Supabase PostgreSQL.
 - Docker Desktop/Engine có Compose nếu chọn chạy bằng container.
-- SMTP để kiểm thử gửi OTP; thông tin payOS để kiểm thử thanh toán online; API key GroqCloud để dùng AI.
+- Tài khoản SendGrid, API key có quyền Mail Send và địa chỉ gửi đã xác minh để kiểm thử OTP; thông tin payOS để kiểm thử thanh toán online; API key GroqCloud để dùng AI.
 
 | Cách chạy | Địa chỉ Swagger |
 |---|---|
@@ -159,11 +159,11 @@ Dự án đã có `UserSecretsId`. Trong Visual Studio, chọn **Manage User Sec
     "RefreshTokenExpireDays": 7
   },
   "MailSettings": {
-    "Host": "smtp.gmail.com",
-    "Port": 587,
     "SenderName": "Sports Center",
-    "SenderEmail": "YOUR_SENDER_EMAIL",
-    "Password": "YOUR_SMTP_APP_PASSWORD"
+    "SenderEmail": "YOUR_VERIFIED_SENDER_EMAIL"
+  },
+  "SendGrid": {
+    "ApiKey": "YOUR_SENDGRID_API_KEY"
   },
   "PayOS": {
     "ClientId": "YOUR_PAYOS_CLIENT_ID",
@@ -237,8 +237,8 @@ ASP.NET Core dùng `:` trong cấu hình JSON/User Secrets và `__` trong biến
 | `Jwt__Issuer`, `Jwt__Audience` | Issuer và audience hợp lệ |
 | `Jwt__ExpireMinutes` | Thời hạn access token |
 | `Jwt__RefreshTokenExpireDays` | Thời hạn refresh token |
-| `MailSettings__Host`, `MailSettings__Port` | SMTP host và cổng STARTTLS |
-| `MailSettings__SenderName`, `MailSettings__SenderEmail`, `MailSettings__Password` | Thông tin gửi mail |
+| `SendGrid__ApiKey` | API key SendGrid có quyền Mail Send |
+| `MailSettings__SenderName`, `MailSettings__SenderEmail` | Tên và địa chỉ người gửi đã xác minh trên SendGrid |
 | `PayOS__ClientId`, `PayOS__ApiKey`, `PayOS__ChecksumKey` | Thông tin tích hợp payOS |
 | `PayOS__ReturnUrl`, `PayOS__CancelUrl` | Trang frontend sau thanh toán/hủy |
 | `AI__ApiKey`, `AI__Model` | API key và model GroqCloud |
@@ -248,7 +248,22 @@ ASP.NET Core dùng `:` trong cấu hình JSON/User Secrets và `__` trong biến
 
 Không commit `.env`, mật khẩu, API key hay token thật. Thành viên mới cần tự cấu hình User Secrets hoặc `.env`; chỉ pull source chưa đủ để kết nối các dịch vụ.
 
-CORS hiện cho phép frontend `http://localhost:3000` trong `Program.cs`. Khi đổi domain frontend, cập nhật cấu hình này. SMTP hiện dùng STARTTLS; môi trường hosting phải cho phép kết nối đến dịch vụ SMTP được chọn.
+CORS hiện cho phép frontend `http://localhost:3000` trong `Program.cs`. Khi đổi domain frontend, cập nhật cấu hình này. Email dùng SendGrid Web API qua HTTPS cổng 443, phù hợp với Render Free đang chặn các cổng SMTP. Không dùng mật khẩu Gmail trong phần gửi mail này.
+
+### Thiết lập SendGrid
+
+1. Tạo tài khoản SendGrid và xác minh địa chỉ người gửi trong **Settings → Sender Authentication**. Với demo có thể dùng Single Sender Verification; triển khai chính thức nên xác thực domain.
+2. Tạo API key có quyền **Mail Send**, lưu vào User Secrets dưới khóa `SendGrid:ApiKey` hoặc biến môi trường `SendGrid__ApiKey` trên Render.
+3. Cấu hình `MailSettings:SenderEmail` đúng địa chỉ đã xác minh và `MailSettings:SenderName` theo tên trung tâm. Hai biến tương ứng trên Render là `MailSettings__SenderEmail`, `MailSettings__SenderName`.
+4. Deploy lại rồi thử gửi OTP đăng ký, đặt lại mật khẩu và đổi email. Kiểm tra hộp thư spam và Email Activity trên SendGrid khi cần.
+
+`EmailService` gọi `POST https://api.sendgrid.com/v3/mail/send` qua `HttpClient`, giữ cả nội dung chữ và HTML. Không cần thêm SendGrid SDK. Response `202 Accepted` nghĩa là SendGrid đã nhận yêu cầu, chưa đảm bảo email đã đến hộp thư.
+
+Thiếu cấu hình trả `503`; SendGrid từ chối key/quyền hoặc giới hạn gửi (`401/403/429`) trả `503`; các lỗi HTTP khác hoặc mất kết nối trả `502`; quá thời gian chờ 30 giây trả `504`. Không tự retry để tránh gửi lặp. Logic tạo/xác thực OTP giữ nguyên. Khi đổi sang SendGrid, máy local cũng cần cấu hình key và người gửi mới. Các biến SMTP cũ có thể giữ lại nhưng không còn được đọc bởi `EmailService`.
+
+Hạn mức và thời gian dùng thử phụ thuộc tài khoản SendGrid; Render Free không bao gồm phí email. Không commit hoặc chia sẻ API key trong ảnh chụp/chat.
+
+Tài liệu: [Mail Send API](https://www.twilio.com/docs/sendgrid/api-reference/mail-send/mail-send), [Sender Identity](https://www.twilio.com/docs/sendgrid/for-developers/sending-email/sender-identity).
 
 ## API và Swagger
 

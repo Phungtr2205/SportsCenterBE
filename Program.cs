@@ -156,7 +156,10 @@ builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddScoped<IClassService, ClassService>();
 builder.Services.Configure<MailSettings>(
 builder.Configuration.GetSection("MailSettings"));
-builder.Services.AddScoped<IEmailService, EmailService>();
+builder.Services.AddHttpClient<IEmailService, EmailService>(client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(30);
+});
 builder.Services.AddSingleton<MemoryOtpStore>();
 builder.Services.AddHttpClient<IAIService, AIService>(client =>
 {
