@@ -8,6 +8,7 @@ namespace SportsCenterAPI.Services.Interface;
 public interface IAuthService
 {
     Task<AuthResponse> LoginAsync(LoginRequestDTO request);
+    Task<AuthResponse> GoogleLoginAsync(GoogleLoginDTO request);
     Task<AuthResponse> RenewToken(RefreshTokenDTO tokenDTO);
     Task Logout(RefreshTokenDTO tokenDTO);
 

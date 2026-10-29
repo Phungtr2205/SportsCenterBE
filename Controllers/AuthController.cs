@@ -24,6 +24,19 @@ public class AuthController(IAuthService authService) : ControllerBase
         return Ok(response);
     }
     /// <summary>
+    /// Đăng nhập bằng Google (idToken hoặc code + redirectUri)
+    /// </summary>
+    [AllowAnonymous]
+    [HttpPost("google")]
+    public async Task<IActionResult> GoogleLogin(
+        [FromBody] GoogleLoginDTO request)
+    {
+        var response = await authService.GoogleLoginAsync(request);
+        Response.Headers.CacheControl = "no-store";
+        return Ok(response);
+    }
+
+    /// <summary>
     /// Gửi OTP xác nhận đăng ký tài khoản
     /// </summary>
     [AllowAnonymous]

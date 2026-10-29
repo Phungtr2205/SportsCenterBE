@@ -146,6 +146,9 @@ builder.Services.AddCors(options =>
 // Register Services (DI)
 
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.Configure<GoogleAuthConfig>(
+    builder.Configuration.GetSection("GoogleAuth"));
+builder.Services.AddHttpClient<IGoogleTokenVerifier, GoogleTokenVerifier>();
 builder.Services.AddScoped<IAccountService, AccountService>();
 builder.Services.AddScoped<IMembershipPackageService, MembershipPackageService>();
 builder.Services.AddScoped<ISubscriptionService, SubscriptionService>();
