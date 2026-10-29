@@ -353,6 +353,8 @@ API dùng GroqCloud Responses API tại `https://api.groq.com/openai/v1/response
 
 Member dùng hồ sơ của mình; Coach cung cấp thêm `memberId` của học viên thuộc phạm vi được phép. `level` nhận `Beginner`, `Intermediate`, `Advanced`; `daysPerWeek` từ 1 đến 7.
 
+Kết quả trả về trong `data` là JSON: `goal`, `level`, `daysPerWeek`, `sessions[]` (`day`, `title`, `durationMinutes`, `exercises[]` gồm `exerciseName`, `sets`, `reps`, `restSeconds`, `note`) và `warnings[]`. Nếu AI trả sai định dạng, API trả 502.
+
 **Trợ lý AI:** `POST /api/ai/chat`, dành cho `Member`.
 
 ```json

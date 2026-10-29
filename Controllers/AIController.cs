@@ -17,8 +17,8 @@ public class AIController(IAIService service) : BaseApiController
     [Authorize(Roles = "Member,Coach")]
     public async Task<IActionResult> Recommend(WorkoutAiRequest request, CancellationToken ct)
     {
-        var answer = await service.RecommendAsync(ActorId(), request, ct);
-        return Success(new { answer });
+        var plan = await service.RecommendAsync(ActorId(), request, ct);
+        return Success(plan);
     }
 
     /// <summary>

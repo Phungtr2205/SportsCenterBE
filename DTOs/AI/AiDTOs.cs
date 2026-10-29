@@ -19,6 +19,32 @@ public class WorkoutAiRequest
     public int DaysPerWeek { get; set; } = 3;
 }
 
+public class WorkoutPlanResponse
+{
+    public string Goal { get; set; } = "";
+    public string Level { get; set; } = "";
+    public int DaysPerWeek { get; set; }
+    public List<WorkoutSession> Sessions { get; set; } = [];
+    public List<string> Warnings { get; set; } = [];
+}
+
+public class WorkoutSession
+{
+    public int Day { get; set; }
+    public string Title { get; set; } = "";
+    public int? DurationMinutes { get; set; }
+    public List<WorkoutExercise> Exercises { get; set; } = [];
+}
+
+public class WorkoutExercise
+{
+    public string ExerciseName { get; set; } = "";
+    public int? Sets { get; set; }
+    public int? Reps { get; set; }
+    public int? RestSeconds { get; set; }
+    public string? Note { get; set; }
+}
+
 public class ChatAiRequest
 {
     [Required(ErrorMessage = "Vui lòng nhập câu hỏi.")]
