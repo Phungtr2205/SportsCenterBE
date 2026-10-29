@@ -233,5 +233,6 @@ if (builder.Configuration.GetValue("Database:InitializeOnStartup", true))
     await SportsCenterAPI.Data.DbSeeder.SeedAsync(db);
 }
 
+app.MapGet("/", () => Results.Redirect("/swagger"));
 
 app.Run();
