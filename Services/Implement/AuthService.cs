@@ -16,7 +16,8 @@ public class AuthService(
     AppDbContext context,
     IConfiguration configuration,
     MemoryOtpStore otpStore,
-    IEmailService emailService) : IAuthService
+    IEmailService emailService,
+    IGoogleTokenVerifier googleVerifier) : IAuthService
 {
     private sealed class PendingRegistration
     {
@@ -36,6 +37,68 @@ public class AuthService(
         {
             throw new UnauthorizedAccessException(
                 "Invalid email or password.");
+        }
+
+        return await CreateAuthResponseAsync(user);
+    }
+
+    public async Task<AuthResponse> GoogleLoginAsync(GoogleLoginDTO request)
+    {
+        var hasIdToken = !string.IsNullOrWhiteSpace(request.IdToken);
+        var hasCode = !string.IsNullOrWhiteSpace(request.Code);
+
+        if (hasIdToken == hasCode)
+        {
+            throw new BusinessException(
+                StatusCodes.Status400BadRequest,
+                "Provide either idToken or code.");
+        }
+
+        GoogleUserInfo info;
+        if (hasIdToken)
+        {
+            info = await googleVerifier.VerifyIdTokenAsync(request.IdToken!);
+        }
+        else
+        {
+            if (string.IsNullOrWhiteSpace(request.RedirectUri))
+            {
+                throw new BusinessException(
+                    StatusCodes.Status400BadRequest,
+                    "redirectUri is required with code.");
+            }
+
+            info = await googleVerifier.ExchangeCodeAsync(
+                request.Code!, request.RedirectUri);
+        }
+
+        var email = NormalizeEmail(info.Email);
+        var user = await context.Users
+            .FirstOrDefaultAsync(u => u.Email.ToLower() == email);
+
+        if (user is null)
+        {
+            // Tài khoản Google không có mật khẩu: băm một chuỗi ngẫu nhiên,
+            // muốn đăng nhập bằng mật khẩu thì dùng quên mật khẩu.
+            var now = DateTime.UtcNow;
+            user = new User
+            {
+                Email = email,
+                PasswordHash = PasswordHelper.HashPassword(
+                    Convert.ToBase64String(RandomNumberGenerator.GetBytes(32))),
+                FullName = info.FullName.Trim(),
+                Role = UserRoles.Member,
+                IsActive = true,
+                CreatedAt = now,
+                Member = new Member { JoinDate = now }
+            };
+
+            context.Users.Add(user);
+            await context.SaveChangesAsync();
+        }
+        else if (!user.IsActive)
+        {
+            throw new UnauthorizedAccessException("Account is disabled.");
         }
 
         return await CreateAuthResponseAsync(user);
