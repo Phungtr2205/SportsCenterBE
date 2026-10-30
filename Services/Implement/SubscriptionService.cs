@@ -446,10 +446,16 @@ public class SubscriptionService : ISubscriptionService
 
             // Nếu là gói nâng cấp -> Kế thừa StartDate từ gói cũ và chuyển gói cũ sang Upgraded
             var targetType = PackageTypeHelper.GetPackageType(subscription.Package.PackageName, subscription.Package.Description);
-            var oldSub = await _context.MemberSubscriptions
+
+            // Lấy các gói Active về RAM trước (PostgreSQL không dịch được hàm C#)
+            var activeSubs = await _context.MemberSubscriptions
                 .Include(s => s.Package)
                 .Where(s => s.MemberId == subscription.MemberId && s.Id != subscription.Id && s.Status == "Active" && (s.EndDate == null || s.EndDate > now))
-                .FirstOrDefaultAsync(s => PackageTypeHelper.GetPackageType(s.Package.PackageName, s.Package.Description) == targetType, cancellationToken);
+                .ToListAsync(cancellationToken);
+
+            // Lọc loại gói trong bộ nhớ
+            var oldSub = activeSubs.FirstOrDefault(s =>
+                s.Package != null && PackageTypeHelper.GetPackageType(s.Package.PackageName, s.Package.Description) == targetType);
 
             if (oldSub != null && targetType == PackageTypeHelper.Standard)
             {

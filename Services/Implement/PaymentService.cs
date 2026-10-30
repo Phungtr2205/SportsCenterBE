@@ -511,7 +511,7 @@ public class PaymentService : IPaymentService
         payment.Status = "Completed";
         payment.PaymentDate = now;
         payment.ReviewReason = null;
-        payment.TransactionReference =
+        payment.TransactionReference =  
             $"INV-{now:yyyyMMdd}-{payment.Id:D8}";
 
         // Kiểm tra xem đây có phải là giao dịch nâng cấp gói không
