@@ -380,6 +380,12 @@ Kết quả trả về trong `data` là JSON: `goal`, `level`, `daysPerWeek`, `s
 
 Service lấy dữ liệu phù hợp, gửi cho GroqCloud và trả câu trả lời trong `data.answer`. AI chỉ tư vấn, không tự đăng ký lớp, thu tiền hoặc tạo giáo án trong database. Một phần dữ liệu mục tiêu, giáo án, điểm danh hoặc gói/lịch cá nhân được gửi cho nhà cung cấp AI tùy endpoint. Không gửi API key vào request Swagger.
 
+Flow 6 yêu cầu model hỗ trợ Structured Outputs trên Responses API (ví dụ `openai/gpt-oss-20b`). Trong một lần gọi, Groq trả JSON nội bộ gồm `topic` và `answer`. Backend kiểm tra JSON: câu ngoài phạm vi nhận lời hướng dẫn cố định; thông tin riêng của trung tâm chưa có dữ liệu xác nhận nhận thông báo chưa đủ dữ liệu. FE vẫn nhận chuỗi `data.answer`, không cần đọc JSON nội bộ này. Response sai cấu trúc trả `502`, không đưa nguyên văn câu trả lời chưa được kiểm tra ra giao diện.
+
+Context gồm tối đa 20 gói đang mở, 5 đăng ký gói (ưu tiên đang có hiệu lực rồi theo thời gian tạo) và 10 buổi học cá nhân chưa kết thúc. Danh sách gói không phải danh sách lớp học/bộ môn. Không suy ra trung tâm không có một dịch vụ chỉ vì dịch vụ đó không xuất hiện trong context. Việc phân loại và trả lời trong phạm vi vẫn phụ thuộc model; cần kiểm thử lại các câu thực tế khi thay model.
+
+Các câu kiểm thử Flow 6: `đi đám cưới rồi chạy xe về nhà`, `nay đi bắn bi đi`, `viết code Java` phải nhận lời hướng dẫn về phạm vi; `Trung tâm có bàn bi da không?` phải nhận thông báo chưa có dữ liệu xác nhận; câu hỏi khởi động, gói tập và lịch cá nhân vẫn được xử lý. Đây là từ chối ở nội dung nên HTTP vẫn là `200`, không phải lỗi JWT hoặc lỗi dịch vụ AI.
+
 ## Dữ liệu và OTP
 
 - PostgreSQL lưu tài khoản, refresh token dạng băm, hội viên, gói/đăng ký, lớp/buổi học, thanh toán, điểm danh, giáo án, thông báo, hỗ trợ và audit log.
