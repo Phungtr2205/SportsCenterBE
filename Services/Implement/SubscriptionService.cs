@@ -786,6 +786,7 @@ public class SubscriptionService : ISubscriptionService
             MemberId = subscription.MemberId,
             PackageId = subscription.PackageId,
             PackageName = subscription.Package.PackageName,
+            PackageType = PackageTypeHelper.GetPackageType(subscription.Package),
 
             AgreedPrice = subscription.AgreedPrice,
             DurationInDays = subscription.DurationInDays,

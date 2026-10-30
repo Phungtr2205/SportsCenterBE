@@ -238,4 +238,27 @@ if (builder.Configuration.GetValue("Database:InitializeOnStartup", true))
 
 app.MapGet("/", () => Results.Redirect("/swagger"));
 
+// Đảm bảo bảng MembershipPackages trên Supabase có cột PackageType chuẩn
+try
+{
+    using var schemaScope = app.Services.CreateScope();
+    var schemaDb = schemaScope.ServiceProvider.GetRequiredService<SportsCenterAPI.Data.AppDbContext>();
+    if (schemaDb.Database.IsRelational())
+    {
+        await schemaDb.Database.ExecuteSqlRawAsync("""
+            ALTER TABLE "MembershipPackages" 
+            ADD COLUMN IF NOT EXISTS "PackageType" character varying(20) NOT NULL DEFAULT 'Standard';
+
+            UPDATE "MembershipPackages" 
+            SET "PackageType" = 'PT' 
+            WHERE "PackageType" = 'Standard' 
+              AND ("PackageName" ILIKE '%PT%' OR "PackageName" ILIKE '%1-1%' OR "Description" ILIKE '%huấn luyện viên%');
+            """);
+    }
+}
+catch
+{
+    // Bỏ qua nếu môi trường test không kết nối DB thật
+}
+
 app.Run();

@@ -6,6 +6,7 @@ public class SubscriptionDTO
     public int MemberId { get; set; }
     public int PackageId { get; set; }
     public string PackageName { get; set; } = string.Empty;
+    public string PackageType { get; set; } = "Standard";
     public decimal AgreedPrice { get; set; }
     public int DurationInDays { get; set; }
     public string Status { get; set; } = string.Empty;

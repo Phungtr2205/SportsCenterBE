@@ -8,6 +8,9 @@ public class MembershipPackageRequestDTO
     [StringLength(200)]
     public string PackageName { get; set; } = string.Empty;
 
+    [StringLength(20)]
+    public string? PackageType { get; set; } // "Standard" hoặc "PT"
+
     [StringLength(2000)]
     public string? Description { get; set; }
 
