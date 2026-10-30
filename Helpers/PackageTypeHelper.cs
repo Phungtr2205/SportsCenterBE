@@ -1,21 +1,40 @@
-﻿namespace SportsCenterAPI.Helpers;
+﻿using System.Text.RegularExpressions;
+using SportsCenterAPI.Models;
 
-public static class PackageTypeHelper
+namespace SportsCenterAPI.Helpers;
+
+public static partial class PackageTypeHelper
 {
     public const string Standard = "Standard";
     public const string PT = "PT";
 
-    /// <summary>
-    /// Nhận diện loại gói: PT (huấn luyện viên cá nhân) hay Standard (hội viên tập chung)
-    /// </summary>
-    public static string GetPackageType(string packageName, string? description = null)
+    [GeneratedRegex(@"\bPT\b", RegexOptions.IgnoreCase)]
+    private static partial Regex PtWordRegex();
+
+    public static string GetPackageType(MembershipPackage? package)
     {
-        if (packageName.Contains("PT", StringComparison.OrdinalIgnoreCase) ||
-            (description != null && (
-                description.Contains("PT", StringComparison.OrdinalIgnoreCase) ||
-                description.Contains("huấn luyện viên", StringComparison.OrdinalIgnoreCase) ||
-                description.Contains("1-1", StringComparison.OrdinalIgnoreCase)
-            )))
+        if (package == null) return Standard;
+        if (string.Equals(package.PackageType, PT, StringComparison.OrdinalIgnoreCase))
+            return PT;
+
+        return GetPackageType(package.PackageName, package.Description);
+    }
+
+    public static string GetPackageType(string? packageName, string? description = null)
+    {
+        if (!string.IsNullOrWhiteSpace(packageName) &&
+            (PtWordRegex().IsMatch(packageName) ||
+             packageName.Contains("1-1", StringComparison.OrdinalIgnoreCase) ||
+             packageName.Contains("Personal Trainer", StringComparison.OrdinalIgnoreCase)))
+        {
+            return PT;
+        }
+
+        if (!string.IsNullOrWhiteSpace(description) &&
+            (PtWordRegex().IsMatch(description) ||
+             description.Contains("huấn luyện viên", StringComparison.OrdinalIgnoreCase) ||
+             description.Contains("Personal Trainer", StringComparison.OrdinalIgnoreCase) ||
+             description.Contains("1-1", StringComparison.OrdinalIgnoreCase)))
         {
             return PT;
         }
@@ -23,6 +42,6 @@ public static class PackageTypeHelper
         return Standard;
     }
 
-    public static bool IsPt(string packageName, string? description = null) =>
+    public static bool IsPt(string? packageName, string? description = null) =>
         GetPackageType(packageName, description) == PT;
 }

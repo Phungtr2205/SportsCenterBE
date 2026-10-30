@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace SportsCenterAPI.Models
 {
     /// <summary>
@@ -8,6 +10,8 @@ namespace SportsCenterAPI.Models
     {
         public int Id { get; set; }
         public string PackageName { get; set; } = string.Empty;
+        [MaxLength(20)]
+        public string PackageType { get; set; } = "Standard"; // Standard hoặc PT
         public string? Description { get; set; }
         public decimal Price { get; set; }
         public int DurationInDays { get; set; }

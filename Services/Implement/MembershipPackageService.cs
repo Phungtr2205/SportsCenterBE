@@ -1,4 +1,3 @@
-using System.Linq.Expressions;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using SportsCenterAPI.Data;
@@ -11,52 +10,45 @@ namespace SportsCenterAPI.Services.Implement;
 
 public class MembershipPackageService(AppDbContext context) : IMembershipPackageService
 {
-    private static readonly Expression<Func<MembershipPackage, MembershipPackageDTO>> Projection = package =>
-        new MembershipPackageDTO
-        {
-            Id = package.Id,
-            PackageName = package.PackageName,
-            Description = package.Description,
-            Price = package.Price,
-            DurationInDays = package.DurationInDays,
-            IsActive = package.IsActive
-        };
-
     public async Task<IReadOnlyList<MembershipPackageDTO>> GetActiveAsync(CancellationToken cancellationToken = default)
     {
-        return await context.MembershipPackages.AsNoTracking()
+        var packages = await context.MembershipPackages.AsNoTracking()
             .Where(package => package.IsActive)
             .OrderBy(package => package.Id)
-            .Select(Projection)
             .ToListAsync(cancellationToken);
+
+        return packages.Select(ToDTO).ToList();
     }
 
     public async Task<MembershipPackageDTO> GetActiveByIdAsync(int id, CancellationToken cancellationToken = default)
     {
-        return await context.MembershipPackages.AsNoTracking()
+        var package = await context.MembershipPackages.AsNoTracking()
             .Where(package => package.Id == id && package.IsActive)
-            .Select(Projection)
             .SingleOrDefaultAsync(cancellationToken)
             ?? throw new BusinessException(404, "Membership package not found.");
+
+        return ToDTO(package);
     }
 
     public async Task<IReadOnlyList<MembershipPackageDTO>> GetForManagementAsync(int actorId, CancellationToken cancellationToken = default)
     {
         await EnsureManagerAsync(actorId, cancellationToken);
-        return await context.MembershipPackages.AsNoTracking()
+        var packages = await context.MembershipPackages.AsNoTracking()
             .OrderBy(package => package.Id)
-            .Select(Projection)
             .ToListAsync(cancellationToken);
+
+        return packages.Select(ToDTO).ToList();
     }
 
     public async Task<MembershipPackageDTO> GetForManagementByIdAsync(int id, int actorId, CancellationToken cancellationToken = default)
     {
         await EnsureManagerAsync(actorId, cancellationToken);
-        return await context.MembershipPackages.AsNoTracking()
+        var package = await context.MembershipPackages.AsNoTracking()
             .Where(package => package.Id == id)
-            .Select(Projection)
             .SingleOrDefaultAsync(cancellationToken)
             ?? throw new BusinessException(404, "Membership package not found.");
+
+        return ToDTO(package);
     }
 
     public async Task<MembershipPackageDTO> CreateAsync(MembershipPackageRequestDTO request, int actorId, CancellationToken cancellationToken = default)
@@ -64,9 +56,12 @@ public class MembershipPackageService(AppDbContext context) : IMembershipPackage
         await EnsureManagerAsync(actorId, cancellationToken);
         Validate(request);
 
+        var resolvedType = ResolvePackageType(request);
+
         var package = new MembershipPackage
         {
             PackageName = request.PackageName.Trim(),
+            PackageType = resolvedType,
             Description = NormalizeDescription(request.Description),
             Price = request.Price,
             DurationInDays = request.DurationInDays,
@@ -74,8 +69,6 @@ public class MembershipPackageService(AppDbContext context) : IMembershipPackage
         };
 
         context.MembershipPackages.Add(package);
-        // The generated package ID is not available before saving. The audit payload
-        // captures its identifying fields so both records can be saved atomically.
         context.AuditLogs.Add(new AuditLog
         {
             UserId = actorId,
@@ -84,6 +77,7 @@ public class MembershipPackageService(AppDbContext context) : IMembershipPackage
             Details = JsonSerializer.Serialize(new
             {
                 package.PackageName,
+                package.PackageType,
                 package.Description,
                 package.Price,
                 package.DurationInDays,
@@ -104,6 +98,7 @@ public class MembershipPackageService(AppDbContext context) : IMembershipPackage
         var package = await FindAsync(id, cancellationToken);
         var before = ToDTO(package);
         package.PackageName = request.PackageName.Trim();
+        package.PackageType = ResolvePackageType(request);
         package.Description = NormalizeDescription(request.Description);
         package.Price = request.Price;
         package.DurationInDays = request.DurationInDays;
@@ -137,7 +132,6 @@ public class MembershipPackageService(AppDbContext context) : IMembershipPackage
             EntityId = package.Id,
             Details = JsonSerializer.Serialize(new { package.PackageName, IsActive = false, SoftDelete = true })
         });
-        // Preserve the package row and existing subscriptions/payment history.
         await context.SaveChangesAsync(cancellationToken);
     }
 
@@ -163,6 +157,23 @@ public class MembershipPackageService(AppDbContext context) : IMembershipPackage
             throw new BusinessException(400, "Price must be positive, fit decimal(18,2), and have at most two decimal places.");
         if (request.DurationInDays is <= 0 or > 36500)
             throw new BusinessException(400, "Duration must be between 1 and 36500 days (100 years).");
+        if (!string.IsNullOrWhiteSpace(request.PackageType) &&
+            !string.Equals(request.PackageType.Trim(), PackageTypeHelper.Standard, StringComparison.OrdinalIgnoreCase) &&
+            !string.Equals(request.PackageType.Trim(), PackageTypeHelper.PT, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new BusinessException(400, "PackageType must be 'Standard' or 'PT'.");
+        }
+    }
+
+    private static string ResolvePackageType(MembershipPackageRequestDTO request)
+    {
+        if (!string.IsNullOrWhiteSpace(request.PackageType))
+        {
+            return string.Equals(request.PackageType.Trim(), PackageTypeHelper.PT, StringComparison.OrdinalIgnoreCase)
+                ? PackageTypeHelper.PT
+                : PackageTypeHelper.Standard;
+        }
+        return PackageTypeHelper.GetPackageType(request.PackageName, request.Description);
     }
 
     private static string? NormalizeDescription(string? description) =>
@@ -172,6 +183,7 @@ public class MembershipPackageService(AppDbContext context) : IMembershipPackage
     {
         Id = package.Id,
         PackageName = package.PackageName,
+        PackageType = PackageTypeHelper.GetPackageType(package),
         Description = package.Description,
         Price = package.Price,
         DurationInDays = package.DurationInDays,
