@@ -31,4 +31,23 @@ public class AIController(IAIService service) : BaseApiController
         var answer = await service.ChatAsync(ActorId(), request, ct);
         return Success(new { answer });
     }
+
+    /// <summary>Xem lịch sử chat của tôi, lượt mới nhất trước</summary>
+    [HttpGet("chat/history")]
+    [Authorize(Roles = "Member")]
+    public async Task<IActionResult> ChatHistory(CancellationToken ct,
+        [FromQuery] int page = 1, [FromQuery] int pageSize = 20)
+    {
+        var history = await service.GetChatHistoryAsync(ActorId(), page, pageSize, ct);
+        return Success(history);
+    }
+
+    /// <summary>Xóa toàn bộ lịch sử chat của tôi</summary>
+    [HttpDelete("chat/history")]
+    [Authorize(Roles = "Member")]
+    public async Task<IActionResult> ClearChatHistory(CancellationToken ct)
+    {
+        await service.ClearChatHistoryAsync(ActorId(), ct);
+        return NoContent();
+    }
 }

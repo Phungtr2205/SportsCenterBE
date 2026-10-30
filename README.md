@@ -309,7 +309,7 @@ Refresh token được lưu dạng băm trong database. Khi refresh thành công
 | Thông báo | `/api/notifications` | Xem và đánh dấu đã đọc |
 | Hỗ trợ | `/api/SupportTickets` | Hội viên gửi yêu cầu; lễ tân/quản lý tiếp nhận và xử lý |
 | Audit log | `/api/audit-logs` | Quản lý tra cứu lịch sử thao tác, lọc và phân trang |
-| AI | `/api/ai` | Gợi ý bài tập và giải đáp câu hỏi |
+| AI | `/api/ai` | Gợi ý bài tập, giải đáp câu hỏi và lịch sử chat cá nhân |
 
 Các đường dẫn trên là nhóm endpoint, không đại diện một HTTP method chung. Xem Swagger để biết quyền và request cụ thể. Endpoint hủy **đăng ký của hội viên** là `/api/class-registrations/{id}/cancel`; hủy **cả buổi học** là `/api/class-sessions/{id}/cancel`.
 
@@ -384,11 +384,30 @@ Flow 6 yêu cầu model hỗ trợ Structured Outputs trên Responses API (ví d
 
 Context gồm tối đa 20 gói đang mở, 5 đăng ký gói (ưu tiên đang có hiệu lực rồi theo thời gian tạo) và 10 buổi học cá nhân chưa kết thúc. Danh sách gói không phải danh sách lớp học/bộ môn. Không suy ra trung tâm không có một dịch vụ chỉ vì dịch vụ đó không xuất hiện trong context. Việc phân loại và trả lời trong phạm vi vẫn phụ thuộc model; cần kiểm thử lại các câu thực tế khi thay model.
 
+### Lịch sử chat và nhớ hội thoại
+
+Mỗi lần `POST /api/ai/chat` thành công, backend lưu một bản ghi `AIChatHistories` gồm `UserId`, `Question`, `Answer`, `CreatedAt` (UTC). Câu hỏi và câu trả lời được lưu cùng nhau; nếu Groq lỗi hoặc response không hợp lệ thì không tạo lượt chat dở dang. Lịch sử cũ trước khi có chức năng này không thể khôi phục tự động.
+
+AI nhận tối đa **5 lượt hỏi–đáp gần nhất** của chính tài khoản đang đăng nhập, xếp từ cũ đến mới; mỗi câu trả lời cũ gửi cho model tối đa 2.000 ký tự. Các bản đầy đủ vẫn được lưu trong DB. JSON gói/lịch hiện tại được ưu tiên hơn thông tin cũ trong hội thoại. API mới chỉ cho `Member`, lấy chủ sở hữu từ JWT, không nhận `userId` để xem dữ liệu người khác.
+
+| Method | Endpoint | Mô tả |
+|---|---|---|
+| GET | `/api/ai/chat/history?page=1&pageSize=20` | Lịch sử của tôi, lượt mới nhất trước |
+| DELETE | `/api/ai/chat/history` | Xóa các lượt chat đã lưu của tôi, trả `204` |
+
+GET trả `data.items`, `totalCount`, `pageNumber`, `pageSize`, `totalPages`, `hasPreviousPage`, `hasNextPage`. Mỗi item gồm `id`, `question`, `answer`, `createdAt`. `page` từ 1–100000, `pageSize` từ 1–100; sai giới hạn trả `400`. Không có lịch sử trả `items: []`, không phải `404`.
+
+**FE cần nối API để reload không mất chat:** khi vào trang, gọi GET lịch sử rồi đảo thứ tự `items` để hiển thị từ cũ đến mới. Mỗi item hiển thị hai bong bóng: `question` của user và `answer` của assistant. Sau khi gửi thành công vẫn đọc `data.answer` như cũ. Nút xóa nội dung gọi DELETE trước khi xóa state; chỉ xóa giao diện thì reload sẽ tải lại lịch sử DB. Chặn gửi/xóa khi đang chờ AI để tránh tạo lượt mới sau một thao tác xóa lịch sử. Lượt đang xử lý có thể được lưu sau DELETE vì DELETE chỉ xóa các bản ghi đã tồn tại tại thời điểm thực hiện.
+
+**Cập nhật database trước khi deploy:** với DB đã có các migration đến `AddRooms`, áp dụng migration `20261030141311_AddAIChatHistory` bằng EF hoặc chạy [script SQL](docs/sql/AddAIChatHistory.sql) trong Supabase SQL Editor. Script có thể chạy lại khi migration đã được đánh dấu áp dụng. Không chạy cả hai cách cùng lúc. Migration cũng bảo đảm cột `PackageType` tồn tại bằng `ADD COLUMN IF NOT EXISTS`, vì phiên bản trước đã tự thêm cột này trong `Program.cs`; giá trị cột đã có được giữ nguyên.
+
+Nếu dùng SQL Editor trên DB dùng chung, giữ `Database__InitializeOnStartup=false` như Compose hiện tại. Chưa tạo bảng mới thì các API chat/lịch sử sẽ lỗi; chỉ deploy code không tự áp dụng migration khi cờ khởi tạo đang tắt.
+
 Các câu kiểm thử Flow 6: `đi đám cưới rồi chạy xe về nhà`, `nay đi bắn bi đi`, `viết code Java` phải nhận lời hướng dẫn về phạm vi; `Trung tâm có bàn bi da không?` phải nhận thông báo chưa có dữ liệu xác nhận; câu hỏi khởi động, gói tập và lịch cá nhân vẫn được xử lý. Đây là từ chối ở nội dung nên HTTP vẫn là `200`, không phải lỗi JWT hoặc lỗi dịch vụ AI.
 
 ## Dữ liệu và OTP
 
-- PostgreSQL lưu tài khoản, refresh token dạng băm, hội viên, gói/đăng ký, lớp/buổi học, thanh toán, điểm danh, giáo án, thông báo, hỗ trợ và audit log.
+- PostgreSQL lưu tài khoản, refresh token dạng băm, hội viên, gói/đăng ký, lớp/buổi học, thanh toán, điểm danh, giáo án, lịch sử chat AI, thông báo, hỗ trợ và audit log.
 - Schema được quản lý bằng EF Core migrations. `DbSeeder` có dữ liệu mẫu; kiểm tra nội dung trước khi bật seed trên database dùng chung.
 - Gửi thời gian buổi học bằng ISO 8601 có múi giờ, ví dụ `2026-11-10T19:00:00+07:00`. Response có thể hiển thị UTC với hậu tố `Z`; frontend chuyển sang giờ hiển thị cho người dùng. Biên lai hiển thị UTC+7.
 - OTP đăng ký/quên mật khẩu được lưu bằng singleton `MemoryOtpStore` và `IMemoryCache`, hết hạn sau 5 phút, tối đa 5 lần nhập sai. Mã được băm SHA-256; mật khẩu đăng ký được băm BCrypt trước khi lưu dữ liệu chờ.
@@ -429,7 +448,7 @@ Khi kiểm thử thủ công trên Swagger, kiểm tra cả thành công và ngo
 ## Giới hạn hiện tại
 
 - OTP trong bộ nhớ phù hợp với một instance API; triển khai nhiều instance cần kho dùng chung.
-- Lịch sử chat và câu trả lời AI chưa được lưu; AI không thay thế việc duyệt giáo án của HLV.
+- Lịch sử chat được lưu theo tài khoản; AI chỉ nhận tối đa 5 lượt gần đây làm ngữ cảnh, không nhớ toàn bộ lịch sử. Gợi ý bài tập Flow 5 chưa tự lưu thành giáo án và vẫn cần HLV xem xét.
 - Response chưa đồng nhất hoàn toàn; một số controller còn truy cập database trực tiếp.
 - Unit test InMemory cần được bổ sung bằng kiểm thử PostgreSQL và kiểm thử tích hợp cho các luồng quan trọng.
 - Swagger ngoài Development cần `OpenApi__Enabled=true`; CORS và URL frontend/payOS cần khớp môi trường triển khai.

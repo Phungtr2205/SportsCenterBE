@@ -51,3 +51,11 @@ public class ChatAiRequest
     [StringLength(1000, MinimumLength = 1, ErrorMessage = "Câu hỏi tối đa 1000 ký tự.")]
     public string Question { get; set; } = string.Empty;
 }
+
+public class ChatHistoryItem
+{
+    public long Id { get; set; }
+    public string Question { get; set; } = string.Empty;
+    public string Answer { get; set; } = string.Empty;
+    public DateTime CreatedAt { get; set; }
+}
