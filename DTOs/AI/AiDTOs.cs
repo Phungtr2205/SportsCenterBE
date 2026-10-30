@@ -59,3 +59,21 @@ public class ChatHistoryItem
     public string Answer { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; }
 }
+
+public class WorkoutHistoryItem
+{
+    public long Id { get; set; }
+    public int MemberId { get; set; }
+    public string Goal { get; set; } = string.Empty;
+    public string Level { get; set; } = string.Empty;
+    public int DaysPerWeek { get; set; }
+    public DateTime CreatedAt { get; set; }
+}
+
+public class WorkoutHistoryDetail
+{
+    public long Id { get; set; }
+    public int MemberId { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public WorkoutPlanResponse Plan { get; set; } = new();
+}

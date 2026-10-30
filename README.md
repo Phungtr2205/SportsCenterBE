@@ -309,7 +309,7 @@ Refresh token được lưu dạng băm trong database. Khi refresh thành công
 | Thông báo | `/api/notifications` | Xem và đánh dấu đã đọc |
 | Hỗ trợ | `/api/SupportTickets` | Hội viên gửi yêu cầu; lễ tân/quản lý tiếp nhận và xử lý |
 | Audit log | `/api/audit-logs` | Quản lý tra cứu lịch sử thao tác, lọc và phân trang |
-| AI | `/api/ai` | Gợi ý bài tập, giải đáp câu hỏi và lịch sử chat cá nhân |
+| AI | `/api/ai` | Gợi ý bài tập, lịch sử gợi ý và lịch sử chat cá nhân |
 
 Các đường dẫn trên là nhóm endpoint, không đại diện một HTTP method chung. Xem Swagger để biết quyền và request cụ thể. Endpoint hủy **đăng ký của hội viên** là `/api/class-registrations/{id}/cancel`; hủy **cả buổi học** là `/api/class-sessions/{id}/cancel`.
 
@@ -370,6 +370,22 @@ Member dùng hồ sơ của mình; Coach cung cấp thêm `memberId` của học
 
 Kết quả trả về trong `data` là JSON: `goal`, `level`, `daysPerWeek`, `sessions[]` (`day`, `title`, `durationMinutes`, `exercises[]` gồm `exerciseName`, `sets`, `reps`, `restSeconds`, `note`) và `warnings[]`. Nếu AI trả sai định dạng, API trả 502.
 
+Mỗi POST thành công tự lưu một bản vào **`AIWorkoutHistories`**, tách riêng với `AIChatHistories` của Flow 6. Bản lưu gồm người tạo (`UserId` lấy từ JWT), học viên (`MemberId`), mục tiêu, trình độ, số ngày tập, toàn bộ kế hoạch JSON và thời gian UTC. Groq lỗi hoặc kế hoạch không đọc được thì không lưu. POST vẫn trả kế hoạch trong `data` như cũ, không bọc thêm trường khác.
+
+| Method | Endpoint | Mô tả |
+|---|---|---|
+| GET | `/api/ai/workout-recommendations/history?page=1&pageSize=20` | Danh sách bản gợi ý do tôi tạo, mới nhất trước |
+| GET | `/api/ai/workout-recommendations/history/{id}` | Xem đầy đủ một bản đã lưu |
+| DELETE | `/api/ai/workout-recommendations/history/{id}` | Xóa một bản của tôi, trả `204` |
+
+Danh sách trả `data.items` và metadata phân trang giống lịch sử chat bên dưới; mỗi item gồm `id`, `memberId`, `goal`, `level`, `daysPerWeek`, `createdAt`. Chi tiết trả `data.id`, `data.memberId`, `data.createdAt`, **`data.plan`** (cùng cấu trúc kế hoạch trong POST). `page` từ 1–100000, `pageSize` từ 1–100; sai giới hạn trả `400`. Danh sách rỗng trả `200` với `items: []`; chi tiết/xóa bản không tồn tại hoặc không có quyền trả `404`.
+
+Member chỉ xem/xóa bản mình đã tạo cho chính mình. Coach chỉ xem/xóa bản chính Coach đó tạo cho học viên mình còn phụ trách (qua đăng ký buổi học chưa hủy hoặc giáo án). Bản Coach tạo không tự xuất hiện trong lịch sử của Member. Manager/Receptionist không được dùng các API này (`403`). Mỗi lần đọc/xóa đều kiểm tra lại quyền hiện tại.
+
+**FE để xem lại sau reload:** gọi GET danh sách khi vào trang, dùng `id` để gọi GET chi tiết rồi hiển thị `data.plan.sessions` và `data.plan.warnings`; không gọi lại Groq để mở bản cũ. Bản lưu chỉ là gợi ý, chưa trở thành giáo án của Flow 4 và không được đưa vào bộ nhớ chat Flow 6.
+
+**Cập nhật Supabase trước khi deploy:** sau migration `AddAIChatHistory`, áp dụng migration `20261030144437_AddAIWorkoutHistory` bằng EF hoặc chạy [SQL tạo lịch sử Flow 5](docs/sql/AddAIWorkoutHistory.sql) trong Supabase SQL Editor. Chọn một cách; script chạy lại được khi migration đã được đánh dấu áp dụng. Với `Database__InitializeOnStartup=false`, push/deploy code không tự tạo bảng; chưa cập nhật DB thì API gợi ý/lịch sử Flow 5 sẽ lỗi. Các bản gợi ý tạo trước chức năng này không được khôi phục tự động.
+
 **Trợ lý AI:** `POST /api/ai/chat`, dành cho `Member`.
 
 ```json
@@ -407,7 +423,7 @@ Các câu kiểm thử Flow 6: `đi đám cưới rồi chạy xe về nhà`, `n
 
 ## Dữ liệu và OTP
 
-- PostgreSQL lưu tài khoản, refresh token dạng băm, hội viên, gói/đăng ký, lớp/buổi học, thanh toán, điểm danh, giáo án, lịch sử chat AI, thông báo, hỗ trợ và audit log.
+- PostgreSQL lưu tài khoản, refresh token dạng băm, hội viên, gói/đăng ký, lớp/buổi học, thanh toán, điểm danh, giáo án, lịch sử gợi ý bài tập/chat AI, thông báo, hỗ trợ và audit log.
 - Schema được quản lý bằng EF Core migrations. `DbSeeder` có dữ liệu mẫu; kiểm tra nội dung trước khi bật seed trên database dùng chung.
 - Gửi thời gian buổi học bằng ISO 8601 có múi giờ, ví dụ `2026-11-10T19:00:00+07:00`. Response có thể hiển thị UTC với hậu tố `Z`; frontend chuyển sang giờ hiển thị cho người dùng. Biên lai hiển thị UTC+7.
 - OTP đăng ký/quên mật khẩu được lưu bằng singleton `MemoryOtpStore` và `IMemoryCache`, hết hạn sau 5 phút, tối đa 5 lần nhập sai. Mã được băm SHA-256; mật khẩu đăng ký được băm BCrypt trước khi lưu dữ liệu chờ.
@@ -448,7 +464,7 @@ Khi kiểm thử thủ công trên Swagger, kiểm tra cả thành công và ngo
 ## Giới hạn hiện tại
 
 - OTP trong bộ nhớ phù hợp với một instance API; triển khai nhiều instance cần kho dùng chung.
-- Lịch sử chat được lưu theo tài khoản; AI chỉ nhận tối đa 5 lượt gần đây làm ngữ cảnh, không nhớ toàn bộ lịch sử. Gợi ý bài tập Flow 5 chưa tự lưu thành giáo án và vẫn cần HLV xem xét.
+- Lịch sử chat được lưu theo tài khoản; AI chỉ nhận tối đa 5 lượt gần đây làm ngữ cảnh, không nhớ toàn bộ lịch sử. Gợi ý Flow 5 lưu riêng trong `AIWorkoutHistories`, chưa thành giáo án và vẫn cần HLV xem xét.
 - Response chưa đồng nhất hoàn toàn; một số controller còn truy cập database trực tiếp.
 - Unit test InMemory cần được bổ sung bằng kiểm thử PostgreSQL và kiểm thử tích hợp cho các luồng quan trọng.
 - Swagger ngoài Development cần `OpenApi__Enabled=true`; CORS và URL frontend/payOS cần khớp môi trường triển khai.

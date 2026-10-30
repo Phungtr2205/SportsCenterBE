@@ -21,6 +21,32 @@ public class AIController(IAIService service) : BaseApiController
         return Success(plan);
     }
 
+    /// <summary>Xem lịch sử gợi ý bài tập do tôi tạo, bản mới nhất trước</summary>
+    [HttpGet("workout-recommendations/history")]
+    [Authorize(Roles = "Member,Coach")]
+    public async Task<IActionResult> WorkoutHistory(CancellationToken ct,
+        [FromQuery] int page = 1, [FromQuery] int pageSize = 20)
+    {
+        return Success(await service.GetWorkoutHistoryAsync(ActorId(), page, pageSize, ct));
+    }
+
+    /// <summary>Xem lại toàn bộ nội dung một bản gợi ý bài tập đã lưu</summary>
+    [HttpGet("workout-recommendations/history/{id:long}")]
+    [Authorize(Roles = "Member,Coach")]
+    public async Task<IActionResult> WorkoutHistoryDetail(long id, CancellationToken ct)
+    {
+        return Success(await service.GetWorkoutHistoryDetailAsync(ActorId(), id, ct));
+    }
+
+    /// <summary>Xóa một bản gợi ý bài tập do tôi tạo</summary>
+    [HttpDelete("workout-recommendations/history/{id:long}")]
+    [Authorize(Roles = "Member,Coach")]
+    public async Task<IActionResult> DeleteWorkoutHistory(long id, CancellationToken ct)
+    {
+        await service.DeleteWorkoutHistoryAsync(ActorId(), id, ct);
+        return NoContent();
+    }
+
     /// <summary>
     /// Hỏi trợ lý AI về tập luyện và dịch vụ trung tâm
     /// </summary>
