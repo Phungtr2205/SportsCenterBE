@@ -137,7 +137,9 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend", policy =>
     {
-        policy.WithOrigins("http://localhost:3000") // Node.js frontend port
+        policy.WithOrigins(
+                  "http://localhost:3000", // Node.js frontend port
+                  "https://sportcenter-fe.onrender.com")
               .AllowAnyHeader()
               .AllowAnyMethod();
     });
