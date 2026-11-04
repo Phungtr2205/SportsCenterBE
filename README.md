@@ -419,7 +419,7 @@ GET trả `data.items`, `totalCount`, `pageNumber`, `pageSize`, `totalPages`, `h
 
 Nếu dùng SQL Editor trên DB dùng chung, giữ `Database__InitializeOnStartup=false` như Compose hiện tại. Chưa tạo bảng mới thì các API chat/lịch sử sẽ lỗi; chỉ deploy code không tự áp dụng migration khi cờ khởi tạo đang tắt.
 
-Các câu kiểm thử Flow 6: `đi đám cưới rồi chạy xe về nhà`, `nay đi bắn bi đi`, `viết code Java` phải nhận lời hướng dẫn về phạm vi; `Trung tâm có bàn bi da không?` phải nhận thông báo chưa có dữ liệu xác nhận; câu hỏi khởi động, gói tập và lịch cá nhân vẫn được xử lý. Đây là từ chối ở nội dung nên HTTP vẫn là `200`, không phải lỗi JWT hoặc lỗi dịch vụ AI.
+Các câu kiểm thử Flow 6: `đi đám cưới rồi chạy xe về nhà`, `nay đi bắn bi đi`, `viết code Java`, `hi` (lời chào/trò chuyện phiếm) phải nhận lời hướng dẫn về phạm vi; `Trung tâm có bàn bi da không?` phải nhận thông báo chưa có dữ liệu xác nhận; câu hỏi khởi động, gói tập và lịch cá nhân vẫn được xử lý. Đây là từ chối ở nội dung nên HTTP vẫn là `200`, không phải lỗi JWT hoặc lỗi dịch vụ AI.
 
 ## Dữ liệu và OTP
 
