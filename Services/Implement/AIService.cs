@@ -85,7 +85,9 @@ public class AIService(AppDbContext db, HttpClient http, IConfiguration config) 
              "warnings":[string]}
             goal, level, daysPerWeek lấy đúng từ dữ liệu đầu vào. sessions có đúng daysPerWeek phần tử, day đánh số từ 1.
             reps là số nguyên (bài tính giờ thì quy đổi sang số lần và ghi chú trong note).
-            Chuỗi viết tiếng Việt, note tối đa 1 câu.
+            TOÀN BỘ chuỗi trả về phải viết bằng tiếng Việt: title, note, warnings và exerciseName.
+            exerciseName viết tên tiếng Việt; có thể kèm tên tiếng Anh trong ngoặc, ví dụ "Gánh tạ đùi (Squat)".
+            Không trả lời bằng tiếng Anh. note tối đa 1 câu.
             plannedExercises chỉ là bài được lên kế hoạch; attendance chỉ là điểm danh.
             Chưa có dữ liệu kết quả thực hiện bài tập: đưa vào warnings rằng chưa thể đánh giá tiến độ.
             Không khẳng định học viên đã tập hoặc hoàn thành bất kỳ bài nào từ hai danh sách này.
