@@ -11,10 +11,12 @@ namespace SportsCenterAPI.Services.Implement;
 public class ClassCatalogService : IClassCatalogService
 {
     private readonly AppDbContext _context;
+    private readonly IImageStorage _imageStorage;
 
-    public ClassCatalogService(AppDbContext context)
+    public ClassCatalogService(AppDbContext context, IImageStorage imageStorage)
     {
         _context = context;
+        _imageStorage = imageStorage;
     }
 
     public async Task<List<SportListDTO>> GetSportsAsync(
@@ -28,7 +30,8 @@ public class ClassCatalogService : IClassCatalogService
             {
                 Id = sport.Id,
                 Name = sport.Name,
-                Description = sport.Description
+                Description = sport.Description,
+                ImageUrl = sport.ImageUrl
             })
             .ToListAsync(cancellationToken);
 
@@ -101,6 +104,15 @@ public class ClassCatalogService : IClassCatalogService
         return MapSportToDTO(sport);
     }
 
+    public async Task<SportDTO> SetSportImageAsync(int id, IFormFile file, CancellationToken cancellationToken)
+    {
+        var sport = await _context.Sports.FirstOrDefaultAsync(s => s.Id == id, cancellationToken)
+            ?? throw new BusinessException(404, "Không tìm thấy bộ môn.");
+        sport.ImageUrl = await _imageStorage.UploadAsync(file, "sports", cancellationToken);
+        await _context.SaveChangesAsync(cancellationToken);
+        return MapSportToDTO(sport);
+    }
+
     public async Task<List<CoachDTO>> GetCoachesAsync(
         CancellationToken cancellationToken)
     {
@@ -162,6 +174,7 @@ public class ClassCatalogService : IClassCatalogService
             Id = sport.Id,
             Name = sport.Name,
             Description = sport.Description,
+            ImageUrl = sport.ImageUrl,
             IsActive = sport.IsActive
         };
     }

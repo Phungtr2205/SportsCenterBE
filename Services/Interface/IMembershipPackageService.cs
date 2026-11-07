@@ -10,5 +10,6 @@ public interface IMembershipPackageService
     Task<MembershipPackageDTO> GetForManagementByIdAsync(int id, int actorId, CancellationToken cancellationToken = default);
     Task<MembershipPackageDTO> CreateAsync(MembershipPackageRequestDTO request, int actorId, CancellationToken cancellationToken = default);
     Task<MembershipPackageDTO> UpdateAsync(int id, UpdateMembershipPackageRequestDTO request, int actorId, CancellationToken cancellationToken = default);
+    Task<MembershipPackageDTO> SetImageAsync(int id, IFormFile file, int actorId, CancellationToken cancellationToken = default);
     Task DeactivateAsync(int id, int actorId, CancellationToken cancellationToken = default);
 }

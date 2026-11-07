@@ -78,6 +78,17 @@ public class ClassCatalogController : ControllerBase
     }
 
     /// <summary>
+    /// Upload ảnh bộ môn (jpg/png/webp, tối đa 2MB)
+    /// </summary>
+    [HttpPost("sports/{id:int}/image")]
+    public async Task<ActionResult<ApiResponse<SportDTO>>> UploadSportImage(
+        int id, IFormFile file, CancellationToken cancellationToken)
+    {
+        var sport = await _classCatalogService.SetSportImageAsync(id, file, cancellationToken);
+        return Ok(ApiResponse<SportDTO>.Ok(sport, "Thành công."));
+    }
+
+    /// <summary>
     /// Xem danh sách huấn luyện viên
     /// </summary>
     [HttpGet("coaches")]

@@ -13,6 +13,7 @@ namespace SportsCenterAPI.Models
         [MaxLength(20)]
         public string PackageType { get; set; } = "Standard"; // Standard hoặc PT
         public string? Description { get; set; }
+        public string? ImageUrl { get; set; }
         public decimal Price { get; set; }
         public int DurationInDays { get; set; }
         public bool IsActive { get; set; } = true;

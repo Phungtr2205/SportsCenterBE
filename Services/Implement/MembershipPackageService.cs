@@ -8,7 +8,7 @@ using SportsCenterAPI.Services.Interface;
 
 namespace SportsCenterAPI.Services.Implement;
 
-public class MembershipPackageService(AppDbContext context) : IMembershipPackageService
+public class MembershipPackageService(AppDbContext context, IImageStorage imageStorage) : IMembershipPackageService
 {
     public async Task<IReadOnlyList<MembershipPackageDTO>> GetActiveAsync(CancellationToken cancellationToken = default)
     {
@@ -116,6 +116,15 @@ public class MembershipPackageService(AppDbContext context) : IMembershipPackage
         return ToDTO(package);
     }
 
+    public async Task<MembershipPackageDTO> SetImageAsync(int id, IFormFile file, int actorId, CancellationToken cancellationToken = default)
+    {
+        await EnsureManagerAsync(actorId, cancellationToken);
+        var package = await FindAsync(id, cancellationToken);
+        package.ImageUrl = await imageStorage.UploadAsync(file, "packages", cancellationToken);
+        await context.SaveChangesAsync(cancellationToken);
+        return ToDTO(package);
+    }
+
     public async Task DeactivateAsync(int id, int actorId, CancellationToken cancellationToken = default)
     {
         await EnsureManagerAsync(actorId, cancellationToken);
@@ -185,6 +194,7 @@ public class MembershipPackageService(AppDbContext context) : IMembershipPackage
         PackageName = package.PackageName,
         PackageType = PackageTypeHelper.GetPackageType(package),
         Description = package.Description,
+        ImageUrl = package.ImageUrl,
         Price = package.Price,
         DurationInDays = package.DurationInDays,
         IsActive = package.IsActive
