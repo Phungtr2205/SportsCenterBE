@@ -31,6 +31,7 @@ public class SportListDTO
     public int Id { get; set; }
     public string Name { get; set; } = string.Empty;
     public string? Description { get; set; }
+    public string? ImageUrl { get; set; }
 }
 
 public class SportDTO
@@ -38,6 +39,7 @@ public class SportDTO
     public int Id { get; set; }
     public string Name { get; set; } = string.Empty;
     public string? Description { get; set; }
+    public string? ImageUrl { get; set; }
     public bool IsActive { get; set; }
 }
 

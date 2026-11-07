@@ -16,6 +16,8 @@ public interface IClassCatalogService
         SportRequestDTO sportRequestDTO,
         CancellationToken cancellationToken);
 
+    Task<SportDTO> SetSportImageAsync(int id, IFormFile file, CancellationToken cancellationToken);
+
     Task<List<CoachDTO>> GetCoachesAsync(
         CancellationToken cancellationToken);
 

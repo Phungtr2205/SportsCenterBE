@@ -147,6 +147,8 @@ builder.Services.AddCors(options =>
 
 // Register Services (DI)
 
+builder.Services.Configure<SupabaseStorageConfig>(builder.Configuration.GetSection("SupabaseStorage"));
+builder.Services.AddHttpClient<IImageStorage, SupabaseImageStorage>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.Configure<GoogleAuthConfig>(
     builder.Configuration.GetSection("GoogleAuth"));

@@ -77,6 +77,16 @@ public class MembershipPackagesController(IMembershipPackageService service) : C
     }
 
     /// <summary>
+    /// Upload ảnh gói tập (jpg/png/webp, tối đa 2MB)
+    /// </summary>
+    [HttpPost("{id:int}/image")]
+    public async Task<ActionResult<ApiResponse<MembershipPackageDTO>>> UploadImage(int id, IFormFile file, CancellationToken cancellationToken)
+    {
+        var package = await service.SetImageAsync(id, file, GetActorId(), cancellationToken);
+        return Ok(ApiResponse<MembershipPackageDTO>.Ok(package, "Membership package image updated."));
+    }
+
+    /// <summary>
     /// Ngừng cung cấp gói tập
     /// </summary>
     [HttpDelete("{id:int}")]
