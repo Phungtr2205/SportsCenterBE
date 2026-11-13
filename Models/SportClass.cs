@@ -18,6 +18,7 @@ namespace SportsCenterAPI.Models
         public DateTime StartDate { get; set; }
         public DateTime EndDate { get; set; }
         public bool IsActive { get; set; } = true;
+        public string? ImageUrl { get; set; }
 
         // Navigation properties
         public ICollection<ClassRegistration> Registrations { get; set; } = new List<ClassRegistration>();

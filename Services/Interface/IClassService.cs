@@ -9,6 +9,7 @@ public interface IClassService
     Task<PageResult<ClassDTO>> GetManagedClassesAsync(int actorId, ClassSearch search, CancellationToken ct = default);
     Task<ClassDTO> GetClassAsync(int id, CancellationToken ct = default);
     Task<ClassDTO> SaveClassAsync(int actorId, int? id, ClassRequest request, CancellationToken ct = default);
+    Task<ClassDTO> SetClassImageAsync(int actorId, int id, IFormFile file, CancellationToken ct = default);
     Task DeactivateClassAsync(int actorId, int id, CancellationToken ct = default);
     Task<PageResult<SessionDTO>> SearchSessionsAsync(ClassSearch search, int? classId = null, int? actorCoachId = null, CancellationToken ct = default);
     Task<SessionDTO> SaveSessionAsync(int actorId, int classId, int? id, SessionRequest request, CancellationToken ct = default);

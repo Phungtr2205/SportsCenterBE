@@ -129,6 +129,19 @@ public class SportClassesController : BaseApiController
         return Success(sportClass);
     }
 
+    /// <summary>
+    /// Upload ảnh lớp học (jpg/png/webp, tối đa 2MB)
+    /// </summary>
+    [HttpPost("{id:int}/image")]
+    public async Task<IActionResult> UploadImage(
+        [FromRoute] int id,
+        IFormFile file,
+        CancellationToken cancellationToken)
+    {
+        var sportClass = await _classService.SetClassImageAsync(ActorId(), id, file, cancellationToken);
+        return Success(sportClass);
+    }
+
     // 6. Quản lý ngừng hoạt động lớp học.
     // Service thực hiện xóa mềm bằng IsActive = false.
     // DELETE /api/classes/5

@@ -56,7 +56,7 @@ public class ClassSearch
 
 public record PageResult<T>(IReadOnlyList<T> Items, int Total, int Page, int PageSize);
 public record ClassDTO(int Id, string ClassName, int SportId, string SportName, int? CoachId,
-    string? CoachName, decimal Price, int MaxCapacity, string? Schedule, DateTime StartDate, DateTime EndDate, bool IsActive);
+    string? CoachName, decimal Price, int MaxCapacity, string? Schedule, DateTime StartDate, DateTime EndDate, bool IsActive, string? ImageUrl);
 public record SessionDTO(int Id, int ClassId, string ClassName, int CoachId, string CoachName,
     DateTime StartsAt, DateTime EndsAt, int Capacity, int CurrentEnrollment, int AvailableSeats,
     string Status, int CancellationPolicyId, int MinimumHoursBeforeStart, string? CancellationReason,

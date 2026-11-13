@@ -42,6 +42,15 @@ public partial class ClassService
         return await GetClassAsync(resultId, ct);
     }
 
+    public async Task<ClassDTO> SetClassImageAsync(int actorId, int id, IFormFile file, CancellationToken ct = default)
+    {
+        await Manager(actorId, ct);
+        var item = await db.SportClasses.SingleOrDefaultAsync(c => c.Id == id, ct) ?? throw new BusinessException(404, "Không tìm thấy lớp học.");
+        item.ImageUrl = await imageStorage.UploadAsync(file, "classes", ct);
+        await db.SaveChangesAsync(ct);
+        return await GetClassAsync(id, ct);
+    }
+
     public async Task DeactivateClassAsync(int actorId, int id, CancellationToken ct = default)
     {
         await Transaction(async () =>
