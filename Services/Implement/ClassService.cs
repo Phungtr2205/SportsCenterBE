@@ -16,13 +16,16 @@ public partial class ClassService : IClassService
     // Giữ tên db và clock để các file partial dùng chung.
     private readonly AppDbContext db;
     private readonly TimeProvider clock;
+    private readonly IImageStorage imageStorage;
 
     public ClassService(
         AppDbContext context,
-        TimeProvider timeProvider)
+        TimeProvider timeProvider,
+        IImageStorage storage)
     {
         db = context;
         clock = timeProvider;
+        imageStorage = storage;
     }
 
     private DateTime Now
@@ -313,7 +316,8 @@ public partial class ClassService : IClassService
             c.Schedule,
             c.StartDate,
             c.EndDate,
-            c.IsActive
+            c.IsActive,
+            c.ImageUrl
         );
 
     // Chọn các trường của đăng ký lớp.

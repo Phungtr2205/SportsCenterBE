@@ -23,7 +23,7 @@ public class ClassServiceTests
         db.Coaches.Add(coach);
         await db.SaveChangesAsync();
 
-        var service = new ClassService(db, TimeProvider.System);
+        var service = new ClassService(db, TimeProvider.System, null!);
 
         var now = DateTimeOffset.UtcNow;
         var request = new ClassRequest
@@ -57,7 +57,7 @@ public class ClassServiceTests
         db.Users.Add(manager);
         await db.SaveChangesAsync();
 
-        var service = new ClassService(db, TimeProvider.System);
+        var service = new ClassService(db, TimeProvider.System, null!);
 
         var now = DateTimeOffset.UtcNow;
         var request = new ClassRequest
