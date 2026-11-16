@@ -8,5 +8,6 @@ namespace SportsCenterAPI.Services.Interface
         Task<IEnumerable<SupportTicketResponse>> GetMyTicketsAsync(int userId);
         Task<IEnumerable<SupportTicketResponse>> GetAllTicketsAsync(string? status);
         Task<SupportTicketResponse> ResolveTicketAsync(int ticketId, int receptionistId, ResolveTicketRequest request);
+        Task<SupportTicketResponse> SetTicketImageAsync(int userId, int ticketId, IFormFile file, CancellationToken ct = default);
     }
 }
