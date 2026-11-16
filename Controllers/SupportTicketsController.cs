@@ -66,5 +66,22 @@ namespace SportsCenterAPI.Controllers
             var result = await _ticketService.ResolveTicketAsync(id, int.Parse(userIdString), request);
             return Ok(result);
         }
+
+        /// <summary>
+        /// Upload ảnh mô tả sự cố cho phiếu hỗ trợ (jpg/png/webp, tối đa 2MB)
+        /// </summary>
+        [HttpPost("{id:int}/image")]
+        [Authorize(Roles = "Member")]
+        public async Task<IActionResult> UploadImage(
+            [FromRoute] int id,
+            IFormFile file,
+            CancellationToken cancellationToken)
+        {
+            var userIdString = User.FindFirst("UserId")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userIdString)) return Unauthorized();
+
+            var result = await _ticketService.SetTicketImageAsync(int.Parse(userIdString), id, file, cancellationToken);
+            return Ok(result);
+        }
     }
 }
