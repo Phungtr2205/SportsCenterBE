@@ -861,6 +861,10 @@ namespace SportsCenterAPI.Migrations
                     b.Property<int?>("HandledByUserId")
                         .HasColumnType("integer");
 
+                    b.Property<string>("ImageUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
                     b.Property<int>("MemberId")
                         .HasColumnType("integer");
 

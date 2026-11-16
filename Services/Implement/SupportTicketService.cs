@@ -9,7 +9,11 @@ namespace SportsCenterAPI.Services.Implement
     public class SupportTicketService : ISupportTicketService
     {
         private readonly AppDbContext _context;
-        public SupportTicketService(AppDbContext context) { _context = context; }
+        private readonly IImageStorage _imageStorage;
+        public SupportTicketService(AppDbContext context, IImageStorage imageStorage)
+            { _context = context;
+            _imageStorage = imageStorage;
+            }
 
         public async Task<SupportTicketResponse> CreateTicketAsync(int userId, CreateTicketRequest request)
         {
@@ -95,8 +99,35 @@ namespace SportsCenterAPI.Services.Implement
                 HandledByUserName = t.HandledByUser?.FullName,
                 ResolutionNote = t.ResolutionNote,
                 CreatedAt = t.CreatedAt,
-                ResolvedAt = t.ResolvedAt
+                ResolvedAt = t.ResolvedAt,
+                ImageUrl = t.ImageUrl
             };
         }
+
+        public async Task<SupportTicketResponse> SetTicketImageAsync(
+            int userId,
+            int ticketId,
+            IFormFile file,
+            CancellationToken ct = default)
+            {
+                var ticket = await _context.SupportTickets
+                    .Include(t => t.Member).ThenInclude(m => m.User)
+                    .Include(t => t.HandledByUser)
+                    .FirstOrDefaultAsync(t => t.Id == ticketId, ct)
+                    ?? throw new KeyNotFoundException("Không tìm thấy phiếu hỗ trợ.");
+
+                // Chỉ cho phép chính hội viên tạo phiếu đó đính kèm ảnh khi phiếu chưa đóng
+                if (ticket.Member.UserId != userId)
+                    throw new UnauthorizedAccessException("Bạn không có quyền cập nhật ảnh cho phiếu hỗ trợ này.");
+
+                if (ticket.Status == "Resolved" || ticket.Status == "Closed")
+                    throw new InvalidOperationException("Không thể cập nhật ảnh cho phiếu hỗ trợ đã giải quyết hoặc đã đóng.");
+
+                ticket.ImageUrl = await _imageStorage.UploadAsync(file, "support-tickets", ct);
+                await _context.SaveChangesAsync(ct);
+
+                return MapToResponse(ticket);
+            }
+
     }
 }

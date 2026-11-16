@@ -30,5 +30,8 @@ namespace SportsCenterAPI.Models
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public DateTime? ResolvedAt { get; set; }
+
+        [MaxLength(500)]
+        public string? ImageUrl { get; set; } // Ảnh mô tả chi tiết sự cố
     }
 }
