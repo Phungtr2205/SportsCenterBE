@@ -34,5 +34,6 @@ namespace SportsCenterAPI.DTOs.Support
         public string? ResolutionNote { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime? ResolvedAt { get; set; }
+        public string? ImageUrl { get; set; }
     }
 }
