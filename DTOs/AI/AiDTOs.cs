@@ -8,7 +8,7 @@ public class WorkoutAiRequest
     [Range(1, int.MaxValue, ErrorMessage = "MemberId phải lớn hơn 0.")]
     public int? MemberId { get; set; }
 
-    [StringLength(200, ErrorMessage = "Mục tiêu tập luyện tối đa 200 ký tự.")]
+    [StringLength(1000, ErrorMessage = "Mục tiêu tập luyện tối đa 1000 ký tự.")]
     public string? Goal { get; set; }
 
     [Required(ErrorMessage = "Vui lòng chọn trình độ tập luyện.")]
