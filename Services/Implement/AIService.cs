@@ -152,7 +152,8 @@ public class AIService(AppDbContext db, HttpClient http, IConfiguration config) 
         {
             UserId = actorId,
             MemberId = member.Id,
-            Goal = plan.Goal,
+            // shortcut: cột DB giới hạn 200, bản đầy đủ nằm trong PlanJson; nâng cột bằng migration khi cần.
+            Goal = plan.Goal.Length > 200 ? plan.Goal[..200] : plan.Goal,
             Level = plan.Level,
             DaysPerWeek = plan.DaysPerWeek,
             PlanJson = JsonSerializer.Serialize(plan)
