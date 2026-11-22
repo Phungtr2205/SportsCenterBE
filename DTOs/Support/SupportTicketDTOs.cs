@@ -7,18 +7,20 @@ namespace SportsCenterAPI.DTOs.Support
         [Required, MaxLength(200)]
         public string Title { get; set; } = null!;
 
-        [Required]
+        [Required, StringLength(4000)]
         public string Description { get; set; } = null!;
 
-        [MaxLength(50)]
+        [RegularExpression("^(Low|Normal|High)$", ErrorMessage = "Priority phải là Low, Normal hoặc High.")]
         public string Priority { get; set; } = "Normal";
     }
 
     public class ResolveTicketRequest
     {
         [Required]
+        [RegularExpression("^(Open|InProgress|Resolved|Closed)$", ErrorMessage = "Status phải là Open, InProgress, Resolved hoặc Closed.")]
         public string Status { get; set; } = null!;
 
+        [StringLength(2000)]
         public string? ResolutionNote { get; set; }
     }
 
