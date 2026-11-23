@@ -21,9 +21,11 @@ public class RegisterRequestDTO
     public string FullName { get; set; } = string.Empty;
 
     [Phone]
+    [StringLength(30)]
     public string? Phone { get; set; }
 
     // Member-specific fields / Thông tin riêng của hội viên
+    [SportsCenterAPI.Helpers.BirthDate]
     public DateTime? DateOfBirth { get; set; }
 
     [StringLength(10)]

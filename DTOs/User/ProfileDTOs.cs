@@ -32,6 +32,7 @@ public class UpdateProfileDTO
 
     public string? CurrentPassword { get; set; }
 
+    [SportsCenterAPI.Helpers.BirthDate]
     public DateTime? DateOfBirth { get; set; }
 
     [StringLength(10)]
@@ -44,6 +45,7 @@ public class UpdateProfileDTO
     public string? FitnessGoal { get; set; }
 
     [StringLength(100)]
+    [RegularExpression(@"^[0-9+\-\s().]{8,30}$", ErrorMessage = "Liên hệ khẩn cấp phải là số điện thoại hợp lệ.")]
     public string? EmergencyContact { get; set; }
 }
 

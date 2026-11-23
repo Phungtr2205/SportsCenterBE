@@ -4,10 +4,10 @@ namespace SportsCenterAPI.DTOs.Attendances
 {
     public class MarkAttendanceDTO
     {
-        [Required]
+        [Range(1, int.MaxValue)]
         public int MemberId { get; set; }
 
-        [Required]
+        [Range(1, int.MaxValue)]
         public int SessionId { get; set; }
         [Required]
         [RegularExpression("^(Present|Absent|Late|Excused)$",ErrorMessage = "Status phải là Present, Absent, Late hoặc Excused.")]
