@@ -25,6 +25,9 @@ public class AuthService(
         public required string PasswordHash { get; init; }
     }
 
+    // shortcut: cho dùng lại token cũ cố định 30 giây, nới ra nếu mạng chậm hay cold start vẫn gây mất phiên.
+    private static readonly TimeSpan RefreshGrace = TimeSpan.FromSeconds(30);
+
     public async Task<AuthResponse> LoginAsync(LoginRequestDTO request)
     {
         var email = NormalizeEmail(request.Email);
@@ -135,13 +138,6 @@ public class AuthService(
             throw new BusinessException(
                 StatusCodes.Status409Conflict,
                 "Email is already registered.");
-        }
-
-        if (request.DateOfBirth?.Date > DateTime.UtcNow.Date)
-        {
-            throw new BusinessException(
-                StatusCodes.Status400BadRequest,
-                "Date of birth cannot be in the future.");
         }
 
         var otp = GenerateOtp();
@@ -307,14 +303,18 @@ public class AuthService(
     {
         ValidateRefreshTokenRequest(tokenDTO);
         var tokenHash = HashRefreshToken(tokenDTO.RefreshTokenKey);
+        var now = DateTime.UtcNow;
+        var graceStart = now - RefreshGrace;
 
+        // Token vừa bị xoay (phản hồi có thể đã mất) vẫn được chấp nhận lại trong 30 giây.
         var storedToken = await context.RefreshTokens
             .AsNoTracking()
             .Include(token => token.User)
-            .SingleOrDefaultAsync(token => token.TokenHash == tokenHash);
+            .SingleOrDefaultAsync(token => token.TokenHash == tokenHash ||
+                (token.PreviousTokenHash == tokenHash && token.RotatedAt > graceStart));
 
         if (storedToken is null || storedToken.IsRevoked ||
-            storedToken.ExpiresAt <= DateTime.UtcNow || !storedToken.User.IsActive)
+            storedToken.ExpiresAt <= now || !storedToken.User.IsActive)
         {
             throw new UnauthorizedAccessException("Refresh token is invalid or expired.");
         }
@@ -326,14 +326,18 @@ public class AuthService(
 
         var newHash = HashRefreshToken(refreshTokenKey);
 
-        // Đổi hash nguyên tử: chỉ request còn giữ hash cũ được thành công.
+        // Đổi hash nguyên tử: chỉ request còn thấy đúng hash hiện tại được thành công.
+        // Hash hiện tại thành PreviousTokenHash nên cả token vừa xoay lẫn token mới đều dùng được trong 30 giây đó.
         // Giữ nguyên ExpiresAt, không kéo dài phiên đăng nhập.
         var updated = await context.RefreshTokens
             .Where(token => token.Id == storedToken.Id &&
-                token.TokenHash == tokenHash && !token.IsRevoked &&
-                token.ExpiresAt > DateTime.UtcNow && token.User.IsActive &&
+                token.TokenHash == storedToken.TokenHash && !token.IsRevoked &&
+                token.ExpiresAt > now && token.User.IsActive &&
                 token.User.Role == storedToken.User.Role)
-            .ExecuteUpdateAsync(setters => setters.SetProperty(token => token.TokenHash, newHash));
+            .ExecuteUpdateAsync(setters => setters
+                .SetProperty(token => token.TokenHash, newHash)
+                .SetProperty(token => token.PreviousTokenHash, storedToken.TokenHash)
+                .SetProperty(token => token.RotatedAt, now));
 
         if (updated != 1)
             throw new UnauthorizedAccessException("Refresh token has already been used or revoked.");

@@ -717,6 +717,13 @@ namespace SportsCenterAPI.Migrations
                     b.Property<bool>("IsRevoked")
                         .HasColumnType("boolean");
 
+                    b.Property<string>("PreviousTokenHash")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<DateTime?>("RotatedAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<string>("TokenHash")
                         .IsRequired()
                         .HasMaxLength(64)
@@ -726,6 +733,8 @@ namespace SportsCenterAPI.Migrations
                         .HasColumnType("integer");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("PreviousTokenHash");
 
                     b.HasIndex("TokenHash")
                         .IsUnique();

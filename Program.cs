@@ -2,7 +2,6 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
-using Scalar.AspNetCore;
 using SportsCenterAPI.Data;
 using SportsCenterAPI.Middleware;
 using SportsCenterAPI.Models;
@@ -55,42 +54,7 @@ builder.Services.AddSwaggerGen(option =>
     });
 });
 
-// OpenAPI/Scalar
-//builder.Services.AddOpenApi(options =>
-//{
-//    options.AddDocumentTransformer((document, context, cancellationToken) =>
-//    {
-//        document.Components ??= new();
-//        document.Components.SecuritySchemes ??=
-//            new Dictionary<string, IOpenApiSecurityScheme>();
-
-//        document.Components.SecuritySchemes["Bearer"] =
-//            new OpenApiSecurityScheme
-//            {
-//                Type = SecuritySchemeType.Http,
-//                Scheme = "bearer",
-//                BearerFormat = "JWT",
-//                Description = "Enter JWT Bearer Token."
-//            };
-
-//        return Task.CompletedTask;
-//    });
-//    options.AddOperationTransformer((operation, context, cancellationToken) =>
-//    {
-//        var metadata = context.Description.ActionDescriptor.EndpointMetadata;
-//        if (metadata.OfType<Microsoft.AspNetCore.Authorization.IAuthorizeData>().Any() &&
-//            !metadata.OfType<Microsoft.AspNetCore.Authorization.IAllowAnonymous>().Any())
-//        {
-//            operation.Security = [new OpenApiSecurityRequirement
-//            {
-//                [new OpenApiSecuritySchemeReference("Bearer", context.Document)] = []
-//            }];
-//        }
-//        return Task.CompletedTask;
-//    });
-//});
-
-// Entity Framework Core + SQL Server
+// Entity Framework Core + PostgreSQL
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
@@ -224,45 +188,16 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
 
-//// Auto-migrate database on startup (development only)
-//using (var scope = app.Services.CreateScope())
-//{
-//    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-//    db.Database.Migrate();
-//}
-
 // Tự động chạy Migration và nạp dữ liệu mẫu
 if (builder.Configuration.GetValue("Database:InitializeOnStartup", true))
 {
     using var scope = app.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<SportsCenterAPI.Data.AppDbContext>();
     db.Database.Migrate();
-    await SportsCenterAPI.Data.DbSeeder.SeedAsync(db);
+    // Tài khoản mẫu có mật khẩu công khai trong repo nên không nạp lên môi trường thật.
+    if (app.Environment.IsDevelopment()) await SportsCenterAPI.Data.DbSeeder.SeedAsync(db);
 }
 
 app.MapGet("/", () => Results.Redirect("/swagger"));
-
-// Đảm bảo bảng MembershipPackages trên Supabase có cột PackageType chuẩn
-try
-{
-    using var schemaScope = app.Services.CreateScope();
-    var schemaDb = schemaScope.ServiceProvider.GetRequiredService<SportsCenterAPI.Data.AppDbContext>();
-    if (schemaDb.Database.IsRelational())
-    {
-        await schemaDb.Database.ExecuteSqlRawAsync("""
-            ALTER TABLE "MembershipPackages" 
-            ADD COLUMN IF NOT EXISTS "PackageType" character varying(20) NOT NULL DEFAULT 'Standard';
-
-            UPDATE "MembershipPackages" 
-            SET "PackageType" = 'PT' 
-            WHERE "PackageType" = 'Standard' 
-              AND ("PackageName" ILIKE '%PT%' OR "PackageName" ILIKE '%1-1%' OR "Description" ILIKE '%huấn luyện viên%');
-            """);
-    }
-}
-catch
-{
-    // Bỏ qua nếu môi trường test không kết nối DB thật
-}
 
 app.Run();
