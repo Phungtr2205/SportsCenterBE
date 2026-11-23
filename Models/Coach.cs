@@ -9,6 +9,7 @@ namespace SportsCenterAPI.Models
         public int Id { get; set; }
         public int UserId { get; set; }
         public User User { get; set; } = null!;
+        public DateTime? DateOfBirth { get; set; }
         public string? Specialization { get; set; }
         public string? Bio { get; set; }
         public int YearsOfExperience { get; set; }

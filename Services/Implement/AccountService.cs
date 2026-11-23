@@ -176,7 +176,11 @@ public class AccountService : IAccountService
 
         if (request.Role == UserRoles.Coach)
         {
-            user.Coach = new Coach();
+            user.Coach = new Coach
+            {
+                DateOfBirth = request.DateOfBirth.HasValue
+                    ? DateTime.SpecifyKind(request.DateOfBirth.Value.Date, DateTimeKind.Utc) : null
+            };
         }
 
         _context.Users.Add(user);

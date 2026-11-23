@@ -42,6 +42,9 @@ public class ProfileService : IProfileService
     {
         var user = await FindUserAsync(userId);
         var member = await _db.Members.AsNoTracking().FirstOrDefaultAsync(m => m.UserId == userId);
+        var coachDob = member == null
+            ? await _db.Coaches.AsNoTracking().Where(c => c.UserId == userId).Select(c => c.DateOfBirth).FirstOrDefaultAsync()
+            : null;
 
         return new ProfileDTO(
             UserId: user.Id,
@@ -52,7 +55,7 @@ public class ProfileService : IProfileService
             Status: "Active",
             CreatedAt: user.CreatedAt,
             UpdatedAt: user.UpdatedAt,
-            DateOfBirth: member?.DateOfBirth,
+            DateOfBirth: member?.DateOfBirth ?? coachDob,
             Gender: member?.Gender,
             Address: member?.Address,
             FitnessGoal: member?.FitnessGoal,
@@ -120,6 +123,13 @@ public class ProfileService : IProfileService
             if (dto.Address != null) member.Address = dto.Address.Trim();
             if (dto.FitnessGoal != null) member.FitnessGoal = dto.FitnessGoal.Trim();
             if (dto.EmergencyContact != null) member.EmergencyContact = dto.EmergencyContact.Trim();
+        }
+
+        // Coach chỉ có ngày sinh; [BirthDate] trên DTO đã kiểm tra khoảng hợp lệ.
+        if (member == null && dto.DateOfBirth.HasValue)
+        {
+            var coach = await _db.Coaches.FirstOrDefaultAsync(c => c.UserId == userId);
+            if (coach != null) coach.DateOfBirth = DateTime.SpecifyKind(dto.DateOfBirth.Value.Date, DateTimeKind.Utc);
         }
 
         user.UpdatedAt = DateTime.UtcNow;

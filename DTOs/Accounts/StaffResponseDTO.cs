@@ -11,6 +11,7 @@ public class StaffResponseDTO
     public string Role { get; set; } = string.Empty;
     public bool IsActive { get; set; }
     public int? CoachId { get; set; }
+    public DateTime? DateOfBirth { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime? UpdatedAt { get; set; }
 
@@ -23,6 +24,7 @@ public class StaffResponseDTO
         Role = user.Role,
         IsActive = user.IsActive,
         CoachId = user.Coach?.Id,
+        DateOfBirth = user.Coach?.DateOfBirth,
         CreatedAt = user.CreatedAt,
         UpdatedAt = user.UpdatedAt
     };
