@@ -366,9 +366,6 @@ namespace SportsCenterAPI.Migrations
                     b.Property<string>("Bio")
                         .HasColumnType("text");
 
-                    b.Property<DateTime?>("DateOfBirth")
-                        .HasColumnType("timestamp with time zone");
-
                     b.Property<string>("Specialization")
                         .HasColumnType("text");
 
