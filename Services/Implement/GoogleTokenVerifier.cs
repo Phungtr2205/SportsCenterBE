@@ -23,9 +23,7 @@ public class GoogleTokenVerifier(
     public async Task<GoogleUserInfo> VerifyIdTokenAsync(string idToken)
     {
         if (string.IsNullOrWhiteSpace(config.ClientId))
-            throw new BusinessException(
-                StatusCodes.Status503ServiceUnavailable,
-                "Google login is not configured.");
+            throw new BusinessException(StatusCodes.Status503ServiceUnavailable, "Google login is not configured.");
 
         GoogleJsonWebSignature.Payload payload;
         try
@@ -55,9 +53,7 @@ public class GoogleTokenVerifier(
     {
         if (string.IsNullOrWhiteSpace(config.ClientId) ||
             string.IsNullOrWhiteSpace(config.ClientSecret))
-            throw new BusinessException(
-                StatusCodes.Status503ServiceUnavailable,
-                "Google login is not configured.");
+            throw new BusinessException(StatusCodes.Status503ServiceUnavailable, "Google login is not configured.");
 
         using var response = await httpClient.PostAsync(
             TokenEndpoint,

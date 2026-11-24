@@ -41,9 +41,7 @@ public class AccountService : IAccountService
 
         if (member == null)
         {
-            throw new BusinessException(
-                404,
-                "Không tìm thấy hội viên.");
+            throw new BusinessException(404, "Không tìm thấy hội viên.");
         }
 
         return MemberResponseDTO.FromModel(member);
@@ -59,9 +57,7 @@ public class AccountService : IAccountService
 
         if (member == null)
         {
-            throw new BusinessException(
-                404,
-                "Không tìm thấy hồ sơ hội viên.");
+            throw new BusinessException(404, "Không tìm thấy hồ sơ hội viên.");
         }
 
         return MemberResponseDTO.FromModel(member);
@@ -80,9 +76,7 @@ public class AccountService : IAccountService
 
         if (member == null)
         {
-            throw new BusinessException(
-                404,
-                "Không tìm thấy hội viên.");
+            throw new BusinessException(404, "Không tìm thấy hội viên.");
         }
 
         if (!member.User.IsActive)
@@ -131,9 +125,7 @@ public class AccountService : IAccountService
 
         if (user == null)
         {
-            throw new BusinessException(
-                404,
-                "Không tìm thấy tài khoản nhân viên.");
+            throw new BusinessException(404, "Không tìm thấy tài khoản nhân viên.");
         }
 
         return StaffResponseDTO.FromModel(user);
@@ -155,9 +147,7 @@ public class AccountService : IAccountService
 
         if (emailExists)
         {
-            throw new BusinessException(
-                409,
-                "Email đã được đăng ký.");
+            throw new BusinessException(409, "Email đã được đăng ký.");
         }
 
         await using var transaction =
@@ -216,9 +206,7 @@ public class AccountService : IAccountService
 
         if (user == null)
         {
-            throw new BusinessException(
-                404,
-                "Không tìm thấy tài khoản nhân viên.");
+            throw new BusinessException(404, "Không tìm thấy tài khoản nhân viên.");
         }
 
         if (user.Role == request.Role)
@@ -228,9 +216,7 @@ public class AccountService : IAccountService
 
         if (userId == callerUserId)
         {
-            throw new BusinessException(
-                409,
-                "Bạn không thể tự đổi quyền của mình.");
+            throw new BusinessException(409, "Bạn không thể tự đổi quyền của mình.");
         }
 
         var oldRole = user.Role;
@@ -270,9 +256,7 @@ public class AccountService : IAccountService
 
         if (userId == callerUserId)
         {
-            throw new BusinessException(
-                409,
-                "Bạn không thể vô hiệu hóa tài khoản của mình.");
+            throw new BusinessException(409, "Bạn không thể vô hiệu hóa tài khoản của mình.");
         }
 
         var user = await StaffQuery()
@@ -280,9 +264,7 @@ public class AccountService : IAccountService
 
         if (user == null)
         {
-            throw new BusinessException(
-                404,
-                "Không tìm thấy tài khoản nhân viên.");
+            throw new BusinessException(404, "Không tìm thấy tài khoản nhân viên.");
         }
 
         if (!user.IsActive)
@@ -327,9 +309,7 @@ public class AccountService : IAccountService
     {
         if (!UserRoles.IsStaff(role))
         {
-            throw new BusinessException(
-                400,
-                "Quyền nhân viên phải là Manager, Receptionist hoặc Coach.");
+            throw new BusinessException(400, "Quyền nhân viên phải là Manager, Receptionist hoặc Coach.");
         }
     }
 
@@ -343,9 +323,7 @@ public class AccountService : IAccountService
 
         if (!isManager)
         {
-            throw new BusinessException(
-                403,
-                "Chỉ quản lý đang hoạt động được thực hiện thao tác này.");
+            throw new BusinessException(403, "Chỉ quản lý đang hoạt động được thực hiện thao tác này.");
         }
     }
 

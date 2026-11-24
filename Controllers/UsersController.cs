@@ -120,9 +120,7 @@ public class UsersController : ControllerBase
 
         if (!int.TryParse(value, out var userId) || userId <= 0)
         {
-            throw new BusinessException(
-                401,
-                "Thông tin đăng nhập không hợp lệ.");
+            throw new BusinessException(401, "Thông tin đăng nhập không hợp lệ.");
         }
 
         return userId;

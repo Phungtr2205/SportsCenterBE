@@ -35,9 +35,7 @@ public class NotificationsController : BaseApiController
         if (page < 1 || page > 100000 ||
             pageSize < 1 || pageSize > 100)
         {
-            throw new BusinessException(
-                StatusCodes.Status400BadRequest,
-                "Trang phải từ 1 đến 100000, số thông báo mỗi trang từ 1 đến 100.");
+            throw new BusinessException(StatusCodes.Status400BadRequest, "Trang phải từ 1 đến 100000, số thông báo mỗi trang từ 1 đến 100.");
         }
 
         var userId = ActorId();
@@ -103,9 +101,7 @@ public class NotificationsController : BaseApiController
 
         if (notification == null)
         {
-            throw new BusinessException(
-                StatusCodes.Status404NotFound,
-                "Không tìm thấy thông báo của bạn.");
+            throw new BusinessException(StatusCodes.Status404NotFound, "Không tìm thấy thông báo của bạn.");
         }
 
         notification.IsRead = true;

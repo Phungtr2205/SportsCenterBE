@@ -38,8 +38,7 @@ public class AuthService(
         if (user is null ||
             !PasswordHelper.VerifyPassword(request.Password, user.PasswordHash))
         {
-            throw new UnauthorizedAccessException(
-                "Invalid email or password.");
+            throw new UnauthorizedAccessException("Invalid email or password.");
         }
 
         return await CreateAuthResponseAsync(user);
@@ -52,9 +51,7 @@ public class AuthService(
 
         if (hasIdToken == hasCode)
         {
-            throw new BusinessException(
-                StatusCodes.Status400BadRequest,
-                "Provide either idToken or code.");
+            throw new BusinessException(StatusCodes.Status400BadRequest, "Provide either idToken or code.");
         }
 
         GoogleUserInfo info;
@@ -66,9 +63,7 @@ public class AuthService(
         {
             if (string.IsNullOrWhiteSpace(request.RedirectUri))
             {
-                throw new BusinessException(
-                    StatusCodes.Status400BadRequest,
-                    "redirectUri is required with code.");
+                throw new BusinessException(StatusCodes.Status400BadRequest, "redirectUri is required with code.");
             }
 
             info = await googleVerifier.ExchangeCodeAsync(
@@ -135,9 +130,7 @@ public class AuthService(
 
         if (await IsEmailExistingAsync(email))
         {
-            throw new BusinessException(
-                StatusCodes.Status409Conflict,
-                "Email is already registered.");
+            throw new BusinessException(StatusCodes.Status409Conflict, "Email is already registered.");
         }
 
         var otp = GenerateOtp();
@@ -162,11 +155,11 @@ public class AuthService(
             RegistrationKey(email), HashOtp(otp), pending);
 
         await emailService.SendEmailAsync(
-    email,
-    "Sports Center | Xác nhận đăng ký",
-    $"Mã xác nhận đăng ký của bạn là {otp}. " +
-    "Mã có hiệu lực trong 5 phút. Không chia sẻ mã với bất kỳ ai.",
-    OtpEmailTemplate.Create(otp, resetPassword: false));
+            email,
+            "Sports Center | Xác nhận đăng ký",
+            $"Mã xác nhận đăng ký của bạn là {otp}. " +
+            "Mã có hiệu lực trong 5 phút. Không chia sẻ mã với bất kỳ ai.",
+            OtpEmailTemplate.Create(otp, resetPassword: false));
     }
 
     public async Task<AuthResponse> VerifyRegisterOtpAsync(
@@ -204,12 +197,12 @@ public class AuthService(
             ResetPasswordKey(email), HashOtp(otp), email);
 
         await emailService.SendEmailAsync(
-           email,
-           "Sports Center | Đặt lại mật khẩu",
-           $"Mã đặt lại mật khẩu của bạn là {otp}. " +
-           "Mã có hiệu lực trong 5 phút. " +
-           "Nếu không yêu cầu đặt lại mật khẩu, hãy bỏ qua email này.",
-           OtpEmailTemplate.Create(otp, resetPassword: true));
+            email,
+            "Sports Center | Đặt lại mật khẩu",
+            $"Mã đặt lại mật khẩu của bạn là {otp}. " +
+            "Mã có hiệu lực trong 5 phút. " +
+            "Nếu không yêu cầu đặt lại mật khẩu, hãy bỏ qua email này.",
+            OtpEmailTemplate.Create(otp, resetPassword: true));
     }
 
     public async Task VerifyResetPasswordOtpAsync(
@@ -217,9 +210,7 @@ public class AuthService(
     {
         if (request.NewPassword != request.ConfirmPassword)
         {
-            throw new BusinessException(
-                StatusCodes.Status400BadRequest,
-                "Passwords do not match.");
+            throw new BusinessException(StatusCodes.Status400BadRequest, "Passwords do not match.");
         }
 
         // Dữ liệu sai không được làm mất OTP còn hợp lệ.
@@ -260,16 +251,12 @@ public class AuthService(
 
         if (await IsEmailExistingAsync(email))
         {
-            throw new BusinessException(
-                StatusCodes.Status409Conflict,
-                "Email is already registered.");
+            throw new BusinessException(StatusCodes.Status409Conflict, "Email is already registered.");
         }
 
         if (request.DateOfBirth?.Date > DateTime.UtcNow.Date)
         {
-            throw new BusinessException(
-                StatusCodes.Status400BadRequest,
-                "Date of birth cannot be in the future.");
+            throw new BusinessException(StatusCodes.Status400BadRequest, "Date of birth cannot be in the future.");
         }
 
         var now = DateTime.UtcNow;
@@ -390,8 +377,7 @@ public class AuthService(
     private static string GenerateRefreshToken() =>
         Convert.ToBase64String(RandomNumberGenerator.GetBytes(64));
 
-    private static string HashRefreshToken(string token) =>
-        Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(token)));
+    private static string HashRefreshToken(string token) => Sha256Hex(token);
 
     private AuthResponse CreateAuthResponse(User user)
     {
@@ -425,12 +411,11 @@ public class AuthService(
         RandomNumberGenerator.GetInt32(0, 1_000_000)
             .ToString("D6");
 
-    private static string HashOtp(string otp) =>
-        Convert.ToHexString(
-            SHA256.HashData(Encoding.UTF8.GetBytes(otp)));
+    private static string HashOtp(string otp) => Sha256Hex(otp);
+
+    private static string Sha256Hex(string value) =>
+        Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(value)));
 
     private static BusinessException InvalidOtpException() =>
-        new(
-            StatusCodes.Status400BadRequest,
-            "OTP is invalid or expired.");
+        new(StatusCodes.Status400BadRequest, "OTP is invalid or expired.");
 }

@@ -20,16 +20,12 @@ public static class ReportDates
     {
         if (from.Year < 2000 || to.Year > 2100 || from > to)
         {
-            throw new BusinessException(
-                400,
-                "Khoảng ngày không hợp lệ. Dùng năm từ 2000 đến 2100 và From <= To.");
+            throw new BusinessException(400, "Khoảng ngày không hợp lệ. Dùng năm từ 2000 đến 2100 và From <= To.");
         }
 
         if (to.DayNumber - from.DayNumber > 365)
         {
-            throw new BusinessException(
-                400,
-                "Mỗi lần xem tối đa 366 ngày.");
+            throw new BusinessException(400, "Mỗi lần xem tối đa 366 ngày.");
         }
     }
 
@@ -39,9 +35,7 @@ public static class ReportDates
     {
         if (from.HasValue != to.HasValue)
         {
-            throw new BusinessException(
-                400,
-                "Cần truyền cả from và to.");
+            throw new BusinessException(400, "Cần truyền cả from và to.");
         }
 
         if (from.HasValue && to.HasValue)

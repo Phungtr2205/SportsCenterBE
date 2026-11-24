@@ -195,6 +195,62 @@ public class SubscriptionServiceTests
         Assert.Equal("Olympus VIP Club", preview.TargetPackageName);
     }
 
+    // Gói đang dùng là gói đã nâng cấp: AgreedPrice chỉ là phần chênh lệch (500k), giá đầy đủ của gói là 1 triệu.
+    private static async Task<SubscriptionService> SeedUpgradedMemberAsync(Data.AppDbContext db, MembershipPackage target)
+    {
+        var user = new User { Id = 107, Email = "mem7@test.com", FullName = "Member 7", Role = "Member", PasswordHash = "h", IsActive = true };
+        var member = new Member { Id = 7, UserId = 107, User = user };
+        var pkgB = new MembershipPackage { Id = 2, PackageName = "Goi B", Price = 1000000m, DurationInDays = 60, IsActive = true };
+
+        var now = DateTime.UtcNow;
+        db.Users.Add(user);
+        db.Members.Add(member);
+        db.MembershipPackages.AddRange(pkgB, target);
+        db.MemberSubscriptions.Add(new MemberSubscription
+        {
+            Id = 30,
+            MemberId = 7,
+            Package = pkgB,
+            AgreedPrice = 500000m,
+            DurationInDays = 60,
+            Status = "Active",
+            StartDate = now.AddDays(-5),
+            EndDate = now.AddDays(55)
+        });
+        await db.SaveChangesAsync();
+        return new SubscriptionService(db);
+    }
+
+    [Fact]
+    public async Task CreateAsync_SecondUpgrade_CreditsFullPriceOfCurrentPackage()
+    {
+        using var db = TestDbHelper.CreateDbContext();
+        var pkgC = new MembershipPackage { Id = 3, PackageName = "Goi C", Price = 1500000m, DurationInDays = 90, IsActive = true };
+        var service = await SeedUpgradedMemberAsync(db, pkgC);
+
+        var result = await service.CreateAsync(107, null, new CreateSubscriptionRequestDTO { PackageId = 3 });
+        var preview = await service.GetUpgradePreviewAsync(107, null, 3);
+
+        // 1.500.000 - 1.000.000 (giá đầy đủ gói B), không phải 1.500.000 - 500.000
+        Assert.Equal(500000m, result.AgreedPrice);
+        Assert.Equal(1000000m, preview.DiscountAmount);
+        Assert.Equal(500000m, preview.AmountToPay);
+    }
+
+    [Fact]
+    public async Task CreateAsync_AfterUpgrade_CheaperPackageIsBlocked()
+    {
+        using var db = TestDbHelper.CreateDbContext();
+        var pkgCheap = new MembershipPackage { Id = 3, PackageName = "Goi re", Price = 700000m, DurationInDays = 30, IsActive = true };
+        var service = await SeedUpgradedMemberAsync(db, pkgCheap);
+
+        // 700k rẻ hơn gói B (1 triệu) nên không được coi là nâng cấp
+        var ex = await Assert.ThrowsAsync<BusinessException>(
+            () => service.CreateAsync(107, null, new CreateSubscriptionRequestDTO { PackageId = 3 }));
+        Assert.Equal(409, ex.StatusCode);
+        Assert.False((await service.GetUpgradePreviewAsync(107, null, 3)).CanUpgrade);
+    }
+
     [Fact]
     public async Task ConfirmPaymentAsync_UpgradePackage_SetsStartDateFromOldPackage_AndMarksOldPackageUpgraded()
     {

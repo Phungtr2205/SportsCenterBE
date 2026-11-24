@@ -28,39 +28,16 @@ public partial class ClassService : IClassService
         imageStorage = storage;
     }
 
-    private DateTime Now
-    {
-        get
-        {
-            return clock.GetUtcNow().UtcDateTime;
-        }
-    }
+    private DateTime Now => clock.GetUtcNow().UtcDateTime;
 
     // Kiểm tra tài khoản thuộc lễ tân hoặc quản lý.
-    private static bool IsDesk(User user)
-    {
-        return user.Role == "Manager" ||
-               user.Role == "Receptionist";
-    }
+    private static bool IsDesk(User user) =>
+        user.Role is UserRoles.Manager or UserRoles.Receptionist;
 
     // Lấy tài khoản đang thực hiện thao tác.
-    private async Task<User> Actor(
-        int id,
-        CancellationToken ct)
-    {
-        var user = await db.Users.SingleOrDefaultAsync(
-            u => u.Id == id && u.IsActive,
-            ct);
-
-        if (user == null)
-        {
-            throw new BusinessException(
-                401,
-                "Tài khoản không hoạt động. Vui lòng đăng nhập lại.");
-        }
-
-        return user;
-    }
+    private async Task<User> Actor(int id, CancellationToken ct) =>
+        await db.Users.SingleOrDefaultAsync(u => u.Id == id && u.IsActive, ct)
+        ?? throw new BusinessException(401, "Tài khoản không hoạt động. Vui lòng đăng nhập lại.");
 
     // Kiểm tra quyền quản lý.
     private async Task<User> Manager(
@@ -71,9 +48,7 @@ public partial class ClassService : IClassService
 
         if (actor.Role != "Manager")
         {
-            throw new BusinessException(
-                403,
-                "Chỉ Manager được thực hiện thao tác này.");
+            throw new BusinessException(403, "Chỉ Manager được thực hiện thao tác này.");
         }
 
         return actor;
@@ -91,65 +66,33 @@ public partial class ClassService : IClassService
 
         if (memberId.HasValue && !IsDesk(actor))
         {
-            throw new BusinessException(
-                403,
-                "Chỉ lễ tân hoặc Manager được chọn hội viên khác.");
+            throw new BusinessException(403, "Chỉ lễ tân hoặc Manager được chọn hội viên khác.");
         }
 
         if (!memberId.HasValue && actor.Role != "Member")
         {
-            throw new BusinessException(
-                403,
-                "Nhân viên cần chọn hội viên cụ thể.");
+            throw new BusinessException(403, "Nhân viên cần chọn hội viên cụ thể.");
         }
 
-        var query = db.Members
-            .Include(m => m.User)
-            .AsQueryable();
+        var query = db.Members.Include(m => m.User).AsQueryable();
+        query = memberId.HasValue
+            ? query.Where(m => m.Id == memberId.Value)
+            : query.Where(m => m.UserId == actorId);
 
-        if (memberId.HasValue)
-        {
-            query = query.Where(m => m.Id == memberId.Value);
-        }
-        else
-        {
-            query = query.Where(m => m.UserId == actorId);
-        }
-
-        var member = await query.SingleOrDefaultAsync(ct);
-
-        if (member == null)
-        {
-            throw new BusinessException(
-                404,
-                "Không tìm thấy hội viên.");
-        }
-
-        return member;
+        return await query.SingleOrDefaultAsync(ct)
+            ?? throw new BusinessException(404, "Không tìm thấy hội viên.");
     }
 
     // Lấy buổi học cùng lớp, bộ môn, HLV và chính sách hủy.
-    private async Task<ClassSession> Session(
-        int id,
-        CancellationToken ct)
-    {
-        var session = await db.ClassSessions
+    private async Task<ClassSession> Session(int id, CancellationToken ct) =>
+        await db.ClassSessions
             .Include(s => s.Class)
                 .ThenInclude(c => c.Sport)
             .Include(s => s.Coach)
                 .ThenInclude(c => c.User)
             .Include(s => s.CancellationPolicy)
-            .SingleOrDefaultAsync(s => s.Id == id, ct);
-
-        if (session == null)
-        {
-            throw new BusinessException(
-                404,
-                "Không tìm thấy buổi học.");
-        }
-
-        return session;
-    }
+            .SingleOrDefaultAsync(s => s.Id == id, ct)
+        ?? throw new BusinessException(404, "Không tìm thấy buổi học.");
 
     // Cho phép lễ tân, quản lý hoặc đúng HLV phụ trách buổi học.
     private async Task EnsureSessionStaff(
@@ -167,9 +110,7 @@ public partial class ClassService : IClassService
 
         if (!isDesk && !isAssignedCoach)
         {
-            throw new BusinessException(
-                403,
-                "Bạn không có quyền quản lý học viên của buổi học này.");
+            throw new BusinessException(403, "Bạn không có quyền quản lý học viên của buổi học này.");
         }
     }
 
@@ -199,9 +140,7 @@ public partial class ClassService : IClassService
         if (page < 1 || page > 100000 ||
             size < 1 || size > 100)
         {
-            throw new BusinessException(
-                400,
-                "Page từ 1 đến 100000; PageSize từ 1 đến 100.");
+            throw new BusinessException(400, "Page từ 1 đến 100000; PageSize từ 1 đến 100.");
         }
     }
 
@@ -287,9 +226,7 @@ public partial class ClassService : IClassService
             ex is DbUpdateConcurrencyException ||
             SqlConflict(ex))
         {
-            throw new BusinessException(
-                409,
-                "Dữ liệu vừa thay đổi bởi yêu cầu khác. Vui lòng tải lại và thử lại.");
+            throw new BusinessException(409, "Dữ liệu vừa thay đổi bởi yêu cầu khác. Vui lòng tải lại và thử lại.");
         }
     }
 
@@ -358,18 +295,12 @@ public partial class ClassService : IClassService
                 .FirstOrDefault()
         );
 
-    private async Task<RegistrationDTO> RegistrationResult(
-        int id,
-        CancellationToken ct)
-    {
-        var registration = await db.ClassRegistrations
+    private Task<RegistrationDTO> RegistrationResult(int id, CancellationToken ct) =>
+        db.ClassRegistrations
             .AsNoTracking()
             .Where(r => r.Id == id)
             .Select(RegistrationProjection)
             .SingleAsync(ct);
-
-        return registration;
-    }
 
     // Tính số học viên và số chỗ còn lại của buổi học.
     private IQueryable<SessionDTO> SessionProjection(
@@ -442,9 +373,7 @@ public partial class ClassService : IClassService
 
         if (search.From >= search.To)
         {
-            throw new BusinessException(
-                400,
-                "From phải trước To.");
+            throw new BusinessException(400, "From phải trước To.");
         }
 
         var query = db.SportClasses
@@ -530,20 +459,12 @@ public partial class ClassService : IClassService
         int id,
         CancellationToken ct = default)
     {
-        var item = await db.SportClasses
+        return await db.SportClasses
             .AsNoTracking()
             .Where(c => c.Id == id)
             .Select(ClassProjection)
-            .SingleOrDefaultAsync(ct);
-
-        if (item == null)
-        {
-            throw new BusinessException(
-                404,
-                "Không tìm thấy lớp học.");
-        }
-
-        return item;
+            .SingleOrDefaultAsync(ct)
+            ?? throw new BusinessException(404, "Không tìm thấy lớp học.");
     }
 
     // Tìm buổi học theo lớp, HLV, bộ môn hoặc thời gian.
@@ -557,9 +478,7 @@ public partial class ClassService : IClassService
 
         if (search.From >= search.To)
         {
-            throw new BusinessException(
-                400,
-                "From phải trước To.");
+            throw new BusinessException(400, "From phải trước To.");
         }
 
         var query = db.ClassSessions
@@ -572,9 +491,7 @@ public partial class ClassService : IClassService
 
             if (actor.Role != "Coach")
             {
-                throw new BusinessException(
-                    403,
-                    "Chỉ dành cho HLV.");
+                throw new BusinessException(403, "Chỉ dành cho HLV.");
             }
 
             // HLV chỉ xem lịch do mình phụ trách.

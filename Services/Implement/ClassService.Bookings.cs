@@ -22,8 +22,7 @@ public partial class ClassService
 
             if (!member.User.IsActive || member.User.Role != "Member")
             {
-                throw new BusinessException(
-                    409, "Hội viên không hoạt động.");
+                throw new BusinessException(409, "Hội viên không hoạt động.");
             }
 
             bool canBook =
@@ -37,8 +36,7 @@ public partial class ClassService
 
             if (!canBook)
             {
-                throw new BusinessException(
-                    409, "Buổi học không còn nhận đăng ký.");
+                throw new BusinessException(409, "Buổi học không còn nhận đăng ký.");
             }
 
             // Hội viên phải có gói còn hạn tại thời điểm đặt.
@@ -51,8 +49,7 @@ public partial class ClassService
 
             if (!hasActivePackage)
             {
-                throw new BusinessException(
-                    409, "Hội viên cần có gói tập còn hạn để đặt lớp.");
+                throw new BusinessException(409, "Hội viên cần có gói tập còn hạn để đặt lớp.");
             }
 
             bool alreadyBooked = await db.ClassRegistrations.AnyAsync(
@@ -63,8 +60,7 @@ public partial class ClassService
 
             if (alreadyBooked)
             {
-                throw new BusinessException(
-                    409, "Hội viên đã đăng ký buổi học này.");
+                throw new BusinessException(409, "Hội viên đã đăng ký buổi học này.");
             }
 
             // Chặn hai buổi chồng giờ; hai buổi liền nhau được phép.
@@ -79,8 +75,7 @@ public partial class ClassService
 
             if (hasConflict)
             {
-                throw new BusinessException(
-                    409, "Buổi học bị trùng giờ với lịch đã đăng ký.");
+                throw new BusinessException(409, "Buổi học bị trùng giờ với lịch đã đăng ký.");
             }
 
             int bookedCount = await db.ClassRegistrations.CountAsync(
@@ -90,8 +85,7 @@ public partial class ClassService
 
             if (bookedCount >= session.Capacity)
             {
-                throw new BusinessException(
-                    409, "Buổi học đã hết chỗ.");
+                throw new BusinessException(409, "Buổi học đã hết chỗ.");
             }
 
             var registration = new ClassRegistration
@@ -182,9 +176,7 @@ public partial class ClassService
             {
                 if (actor.Role != "Member")
                 {
-                    throw new BusinessException(
-                        403,
-                        "Chỉ hội viên hoặc lễ tân/Manager được hủy đăng ký.");
+                    throw new BusinessException(403, "Chỉ hội viên hoặc lễ tân/Manager được hủy đăng ký.");
                 }
 
                 query = query.Where(r => r.Member.UserId == actorId);
@@ -194,8 +186,7 @@ public partial class ClassService
 
             if (registration == null)
             {
-                throw new BusinessException(
-                    404, "Không tìm thấy đăng ký.");
+                throw new BusinessException(404, "Không tìm thấy đăng ký.");
             }
 
             if (registration.Status == "Cancelled")
@@ -205,9 +196,7 @@ public partial class ClassService
 
             if (!registration.SessionId.HasValue)
             {
-                throw new BusinessException(
-                    409,
-                    "Đăng ký cũ chưa được gắn với buổi học cụ thể.");
+                throw new BusinessException(409, "Đăng ký cũ chưa được gắn với buổi học cụ thể.");
             }
 
             var session = await Session(
@@ -221,9 +210,7 @@ public partial class ClassService
 
             if (!canCancel)
             {
-                throw new BusinessException(
-                    409,
-                    "Đã quá hạn hủy hoặc đăng ký không còn có thể hủy.");
+                throw new BusinessException(409, "Đã quá hạn hủy hoặc đăng ký không còn có thể hủy.");
             }
 
             bool hasAttendance = await db.Attendances.AnyAsync(
@@ -233,8 +220,7 @@ public partial class ClassService
 
             if (hasAttendance)
             {
-                throw new BusinessException(
-                    409, "Không hủy đăng ký đã điểm danh.");
+                throw new BusinessException(409, "Không hủy đăng ký đã điểm danh.");
             }
 
             registration.Status = "Cancelled";
@@ -323,14 +309,12 @@ public partial class ClassService
 
             if (registration == null)
             {
-                throw new BusinessException(
-                    404, "Không tìm thấy đăng ký.");
+                throw new BusinessException(404, "Không tìm thấy đăng ký.");
             }
 
             if (!registration.SessionId.HasValue)
             {
-                throw new BusinessException(
-                    409, "Đăng ký cũ chưa được gắn buổi học.");
+                throw new BusinessException(409, "Đăng ký cũ chưa được gắn buổi học.");
             }
 
             var session = await Session(
@@ -348,12 +332,7 @@ public partial class ClassService
 
             if (existing != null)
             {
-                return new AttendanceDTO(
-                    existing.Id,
-                    existing.MemberId,
-                    existing.SessionId,
-                    existing.CheckInTime,
-                    existing.Status);
+                return ToAttendanceDto(existing);
             }
 
             var now = Now;
@@ -366,10 +345,8 @@ public partial class ClassService
 
             if (!canCheckIn)
             {
-                throw new BusinessException(
-                    409,
-                    "Chỉ điểm danh từ 30 phút trước giờ học " +
-                    "đến trước khi buổi học kết thúc.");
+                throw new BusinessException(409,
+                    "Chỉ điểm danh từ 30 phút trước giờ học đến trước khi buổi học kết thúc.");
             }
 
             var attendance = new Attendance
@@ -390,14 +367,12 @@ public partial class ClassService
                 attendance.Id,
                 $"Checked in registration {registrationId}");
 
-            return new AttendanceDTO(
-                attendance.Id,
-                attendance.MemberId,
-                attendance.SessionId,
-                attendance.CheckInTime,
-                attendance.Status);
+            return ToAttendanceDto(attendance);
         }, ct);
     }
+
+    private static AttendanceDTO ToAttendanceDto(Attendance a) =>
+        new(a.Id, a.MemberId, a.SessionId, a.CheckInTime, a.Status);
 
     // 6. Hội viên đánh giá buổi học.
     public async Task<ReviewDTO> ReviewAsync(
@@ -414,8 +389,7 @@ public partial class ClassService
 
             if (actor.Role != "Member")
             {
-                throw new BusinessException(
-                    403, "Chỉ hội viên được đánh giá.");
+                throw new BusinessException(403, "Chỉ hội viên được đánh giá.");
             }
 
             var registration = await db.ClassRegistrations
@@ -427,8 +401,7 @@ public partial class ClassService
 
             if (registration == null)
             {
-                throw new BusinessException(
-                    404, "Không tìm thấy đăng ký của bạn.");
+                throw new BusinessException(404, "Không tìm thấy đăng ký của bạn.");
             }
 
             var session = registration.Session;
@@ -438,9 +411,7 @@ public partial class ClassService
                 session.Status != "Completed" ||
                 session.EndsAt > Now)
             {
-                throw new BusinessException(
-                    409,
-                    "Chỉ đánh giá buổi đã hoàn thành và có điểm danh tham gia.");
+                throw new BusinessException(409, "Chỉ đánh giá buổi đã hoàn thành và có điểm danh tham gia.");
             }
 
             // Người tham gia đúng giờ hoặc đi muộn đều được đánh giá.
@@ -452,9 +423,7 @@ public partial class ClassService
 
             if (!wasPresent)
             {
-                throw new BusinessException(
-                    409,
-                    "Chỉ đánh giá buổi đã hoàn thành và có điểm danh tham gia.");
+                throw new BusinessException(409, "Chỉ đánh giá buổi đã hoàn thành và có điểm danh tham gia.");
             }
 
             bool alreadyReviewed = await db.ClassReviews.AnyAsync(
@@ -463,8 +432,7 @@ public partial class ClassService
 
             if (alreadyReviewed)
             {
-                throw new BusinessException(
-                    409, "Bạn đã đánh giá buổi học này.");
+                throw new BusinessException(409, "Bạn đã đánh giá buổi học này.");
             }
 
             var review = new ClassReview
@@ -508,8 +476,7 @@ public partial class ClassService
 
         if (!sessionExists)
         {
-            throw new BusinessException(
-                404, "Không tìm thấy buổi học.");
+            throw new BusinessException(404, "Không tìm thấy buổi học.");
         }
 
         var query = db.ClassReviews

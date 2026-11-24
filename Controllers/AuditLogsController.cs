@@ -24,9 +24,7 @@ public class AuditLogsController(AppDbContext context) : BaseApiController
         if (request.From.HasValue && request.To.HasValue &&
             request.From.Value > request.To.Value)
         {
-            throw new BusinessException(
-                400,
-                "Ngày bắt đầu không được sau ngày kết thúc.");
+            throw new BusinessException(400, "Ngày bắt đầu không được sau ngày kết thúc.");
         }
 
         // 2. Kiểm tra tài khoản vẫn hoạt động và còn quyền Manager.
@@ -40,9 +38,7 @@ public class AuditLogsController(AppDbContext context) : BaseApiController
 
         if (!isManager)
         {
-            throw new BusinessException(
-                403,
-                "Chỉ Manager đang hoạt động được xem nhật ký.");
+            throw new BusinessException(403, "Chỉ Manager đang hoạt động được xem nhật ký.");
         }
 
         // 3. Tạo truy vấn chỉ đọc.

@@ -66,9 +66,7 @@ public class PaymentService : IPaymentService
     {
         if (dto == null || dto.SubscriptionId <= 0)
         {
-            throw new BusinessException(
-                400,
-                "Vui lòng chọn đăng ký gói.");
+            throw new BusinessException(400, "Vui lòng chọn đăng ký gói.");
         }
 
         Payment payment;
@@ -88,25 +86,19 @@ public class PaymentService : IPaymentService
 
             if (subscription == null)
             {
-                throw new BusinessException(
-                    404,
-                    "Không tìm thấy đăng ký gói.");
+                throw new BusinessException(404, "Không tìm thấy đăng ký gói.");
             }
 
             CheckPermission(actor, subscription.Member.UserId);
 
             if (subscription.Status != "Pending")
             {
-                throw new BusinessException(
-                    409,
-                    "Chỉ thanh toán đăng ký gói đang Pending.");
+                throw new BusinessException(409, "Chỉ thanh toán đăng ký gói đang Pending.");
             }
 
             if (!subscription.Member.User.IsActive)
             {
-                throw new BusinessException(
-                    409,
-                    "Tài khoản hội viên đã ngừng hoạt động.");
+                throw new BusinessException(409, "Tài khoản hội viên đã ngừng hoạt động.");
             }
 
             if (subscription.AgreedPrice <= 0 ||
@@ -114,16 +106,12 @@ public class PaymentService : IPaymentService
                 decimal.Truncate(subscription.AgreedPrice)
                     != subscription.AgreedPrice)
             {
-                throw new BusinessException(
-                    400,
-                    "Giá thanh toán phải là số nguyên VND dương hợp lệ.");
+                throw new BusinessException(400, "Giá thanh toán phải là số nguyên VND dương hợp lệ.");
             }
 
             if (subscription.DurationInDays is <= 0 or > 36500)
             {
-                throw new BusinessException(
-                    409,
-                    "Thời hạn gói không hợp lệ.");
+                throw new BusinessException(409, "Thời hạn gói không hợp lệ.");
             }
 
             var hasBlockingPayment = await _context.Payments.AnyAsync(
@@ -133,9 +121,7 @@ public class PaymentService : IPaymentService
 
             if (hasBlockingPayment)
             {
-                throw new BusinessException(
-                    409,
-                    "Đăng ký đã thanh toán hoặc có giao dịch cần đối soát.");
+                throw new BusinessException(409, "Đăng ký đã thanh toán hoặc có giao dịch cần đối soát.");
             }
 
             // Người dùng bấm lại thì dùng yêu cầu Pending đã có.
@@ -235,9 +221,7 @@ public class PaymentService : IPaymentService
             dto.Data.Amount <= 0 ||
             string.IsNullOrWhiteSpace(dto.Data.PaymentLinkId))
         {
-            throw new BusinessException(
-                400,
-                "Dữ liệu giao dịch webhook không hợp lệ.");
+            throw new BusinessException(400, "Dữ liệu giao dịch webhook không hợp lệ.");
         }
 
         var payment = await _context.Payments
@@ -255,9 +239,7 @@ public class PaymentService : IPaymentService
         if (payment.PayOSPaymentLinkId != null &&
             payment.PayOSPaymentLinkId != dto.Data.PaymentLinkId)
         {
-            throw new BusinessException(
-                400,
-                "Mã link thanh toán không khớp.");
+            throw new BusinessException(400, "Mã link thanh toán không khớp.");
         }
 
         // Webhook gửi lại không được kích hoạt gói lần thứ hai.
@@ -280,9 +262,7 @@ public class PaymentService : IPaymentService
 
         if (payment.PaymentMethod != "PayOS")
         {
-            throw new BusinessException(
-                400,
-                "Giao dịch này không sử dụng payOS.");
+            throw new BusinessException(400, "Giao dịch này không sử dụng payOS.");
         }
 
         if (payment.Status == "Completed")
@@ -306,9 +286,7 @@ public class PaymentService : IPaymentService
     {
         if (string.IsNullOrWhiteSpace(reason) || reason.Length > 200)
         {
-            throw new BusinessException(
-                400,
-                "Lý do hủy phải từ 1 đến 200 ký tự.");
+            throw new BusinessException(400, "Lý do hủy phải từ 1 đến 200 ký tự.");
         }
 
         var payment = await GetOwnedPaymentAsync(id, actorId);
@@ -316,9 +294,7 @@ public class PaymentService : IPaymentService
         if (payment.PaymentMethod != "PayOS" ||
             payment.Status != "Pending")
         {
-            throw new BusinessException(
-                409,
-                "Chỉ hủy link payOS đang Pending.");
+            throw new BusinessException(409, "Chỉ hủy link payOS đang Pending.");
         }
 
         Payment updated;
@@ -360,17 +336,13 @@ public class PaymentService : IPaymentService
         }
         catch (PayOSException)
         {
-            throw new BusinessException(
-                503,
-                "Chưa lấy được trạng thái payOS. Thử đồng bộ lại giao dịch này.");
+            throw new BusinessException(503, "Chưa lấy được trạng thái payOS. Thử đồng bộ lại giao dịch này.");
         }
 
         if (expectedLinkId != null &&
             result.PaymentLinkId != expectedLinkId)
         {
-            throw new BusinessException(
-                400,
-                "Mã link webhook không khớp kết quả payOS.");
+            throw new BusinessException(400, "Mã link webhook không khớp kết quả payOS.");
         }
 
         return await ApplyGatewayResultAsync(payment, result, actorId);
@@ -410,9 +382,7 @@ public class PaymentService : IPaymentService
             (payment.PayOSPaymentLinkId != null &&
              payment.PayOSPaymentLinkId != result.PaymentLinkId))
         {
-            throw new BusinessException(
-                502,
-                "Kết quả payOS không khớp thanh toán.");
+            throw new BusinessException(502, "Kết quả payOS không khớp thanh toán.");
         }
 
         // Bỏ qua response cũ có số tiền nhận thấp hơn bản đã lưu.
@@ -511,7 +481,7 @@ public class PaymentService : IPaymentService
         payment.Status = "Completed";
         payment.PaymentDate = now;
         payment.ReviewReason = null;
-        payment.TransactionReference =  
+        payment.TransactionReference =
             $"INV-{now:yyyyMMdd}-{payment.Id:D8}";
 
         // Kiểm tra xem đây có phải là giao dịch nâng cấp gói không
@@ -519,20 +489,26 @@ public class PaymentService : IPaymentService
         // 1. Lấy danh sách các gói Active của hội viên từ DB về RAM
         var activeSubs = await _context.MemberSubscriptions
             .Include(s => s.Package)
-            .Where(s => s.MemberId == subscription.MemberId && s.Id != subscription.Id && s.Status == "Active" && (s.EndDate == null || s.EndDate > now))
+            .Where(s => s.MemberId == subscription.MemberId &&
+                        s.Id != subscription.Id &&
+                        s.Status == "Active" &&
+                        (s.EndDate == null || s.EndDate > now))
             .ToListAsync();
 
         // 2. Lọc loại gói trong bộ nhớ C# (Client Evaluation)
         var oldSub = activeSubs.FirstOrDefault(s =>
             s.Package != null && PackageTypeHelper.GetPackageType(s.Package.PackageName, s.Package.Description) == targetType);
 
-        if (oldSub != null && targetType == PackageTypeHelper.Standard)
-        {
-            subscription.StartDate = oldSub.StartDate ?? now;
-            subscription.EndDate = (oldSub.StartDate ?? now).AddDays(subscription.DurationInDays);
-            subscription.Status = "Active";
+        var isUpgrade = oldSub != null && targetType == PackageTypeHelper.Standard;
+        var startDate = isUpgrade ? oldSub!.StartDate ?? now : now;
 
-            oldSub.Status = "Upgraded";
+        subscription.StartDate = startDate;
+        subscription.EndDate = startDate.AddDays(subscription.DurationInDays);
+        subscription.Status = "Active";
+
+        if (isUpgrade)
+        {
+            oldSub!.Status = "Upgraded";
             _context.AuditLogs.Add(new AuditLog
             {
                 UserId = actorId,
@@ -542,12 +518,6 @@ public class PaymentService : IPaymentService
                 Details = $"Gói #{oldSub.Id} chuyển sang Upgraded sau khi nâng cấp lên gói #{subscription.Id} qua PayOS #{payment.Id}.",
                 Timestamp = now
             });
-        }
-        else
-        {
-            subscription.StartDate = now;
-            subscription.EndDate = now.AddDays(subscription.DurationInDays);
-            subscription.Status = "Active";
         }
 
         _context.AuditLogs.Add(new AuditLog
@@ -589,9 +559,7 @@ public class PaymentService : IPaymentService
 
         if (actor.Role is not ("Member" or "Receptionist" or "Manager"))
         {
-            throw new BusinessException(
-                403,
-                "Không có quyền truy cập thanh toán.");
+            throw new BusinessException(403, "Không có quyền truy cập thanh toán.");
         }
 
         return actor;
@@ -606,9 +574,7 @@ public class PaymentService : IPaymentService
 
         if (actor.Id != ownerUserId)
         {
-            throw new BusinessException(
-                403,
-                "Không có quyền truy cập thanh toán này.");
+            throw new BusinessException(403, "Không có quyền truy cập thanh toán này.");
         }
     }
 
@@ -625,9 +591,7 @@ public class PaymentService : IPaymentService
 
         if (payment == null)
         {
-            throw new BusinessException(
-                404,
-                "Không tìm thấy thanh toán.");
+            throw new BusinessException(404, "Không tìm thấy thanh toán.");
         }
 
         CheckPermission(actor, payment.Member.UserId);
@@ -677,6 +641,4 @@ public class PaymentService : IPaymentService
             ReviewReason = payment.ReviewReason
         };
     }
-   
-
 }

@@ -39,8 +39,7 @@ public class PayOSService : IPayOSService
             payment.Amount > 9007199254740991m ||
             decimal.Truncate(payment.Amount) != payment.Amount)
         {
-            throw new InvalidOperationException(
-                "Số tiền thanh toán phải là số nguyên VND dương trong giới hạn cho phép.");
+            throw new InvalidOperationException("Số tiền thanh toán phải là số nguyên VND dương trong giới hạn cho phép.");
         }
 
         var request = new CreatePaymentLinkRequest
@@ -111,8 +110,7 @@ public class PayOSService : IPayOSService
         if (!payment.PayOSOrderCode.HasValue ||
             payment.PayOSOrderCode.Value <= 0)
         {
-            throw new InvalidOperationException(
-                "Thanh toán chưa có mã đơn payOS hợp lệ.");
+            throw new InvalidOperationException("Thanh toán chưa có mã đơn payOS hợp lệ.");
         }
 
         return payment.PayOSOrderCode.Value;

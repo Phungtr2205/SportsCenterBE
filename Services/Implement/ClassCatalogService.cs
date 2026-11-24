@@ -73,9 +73,7 @@ public class ClassCatalogService : IClassCatalogService
 
         if (sport == null)
         {
-            throw new BusinessException(
-                404,
-                "Không tìm thấy bộ môn.");
+            throw new BusinessException(404, "Không tìm thấy bộ môn.");
         }
 
         if (!sportRequestDTO.IsActive)
@@ -88,9 +86,7 @@ public class ClassCatalogService : IClassCatalogService
 
             if (hasScheduledSessions)
             {
-                throw new BusinessException(
-                    409,
-                    "Bộ môn vẫn còn buổi học chưa hoàn thành/hủy.");
+                throw new BusinessException(409, "Bộ môn vẫn còn buổi học chưa hoàn thành/hủy.");
             }
         }
 
@@ -153,9 +149,7 @@ public class ClassCatalogService : IClassCatalogService
 
         if (coach == null)
         {
-            throw new BusinessException(
-                404,
-                "Không tìm thấy HLV.");
+            throw new BusinessException(404, "Không tìm thấy HLV.");
         }
 
         coach.Specialization = coachProfileRequestDTO.Specialization?.Trim();

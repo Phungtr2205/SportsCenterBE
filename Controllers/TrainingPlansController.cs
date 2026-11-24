@@ -85,4 +85,40 @@ public class TrainingPlansController(ITrainingPlanService trainingService) : Bas
             return BadRequest(new { success = false, message = ex.Message });
         }
     }
+
+    /// <summary>
+    /// Huấn luyện viên sửa giáo án (tên, mục tiêu, ngày, danh sách bài tập)
+    /// </summary>
+    [HttpPut("{id:int}")]
+    [Authorize(Roles = UserRoles.Coach)]
+    public async Task<IActionResult> UpdatePlan(int id, [FromBody] CreateTrainingPlanDTO request)
+    {
+        try
+        {
+            var result = await trainingService.UpdatePlanAsync(ActorId(), id, request);
+            return Ok(new { success = true, data = result });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { success = false, message = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Huấn luyện viên xóa giáo án
+    /// </summary>
+    [HttpDelete("{id:int}")]
+    [Authorize(Roles = UserRoles.Coach)]
+    public async Task<IActionResult> DeletePlan(int id)
+    {
+        try
+        {
+            await trainingService.DeletePlanAsync(ActorId(), id);
+            return Ok(new { success = true, message = "Đã xóa giáo án." });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { success = false, message = ex.Message });
+        }
+    }
 }

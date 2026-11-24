@@ -413,9 +413,7 @@ public class PaymentsController : ControllerBase
 
         if (!int.TryParse(value, out int actorId) || actorId <= 0)
         {
-            throw new BusinessException(
-                StatusCodes.Status401Unauthorized,
-                "Thông tin đăng nhập không hợp lệ.");
+            throw new BusinessException(StatusCodes.Status401Unauthorized, "Thông tin đăng nhập không hợp lệ.");
         }
 
         return actorId;

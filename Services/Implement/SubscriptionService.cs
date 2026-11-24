@@ -39,16 +39,12 @@ public class SubscriptionService : ISubscriptionService
 
             if (package == null)
             {
-                throw new BusinessException(
-                    404,
-                    "Không tìm thấy gói tập.");
+                throw new BusinessException(404, "Không tìm thấy gói tập.");
             }
 
             if (!package.IsActive)
             {
-                throw new BusinessException(
-                    409,
-                    "Gói tập đã ngừng bán.");
+                throw new BusinessException(409, "Gói tập đã ngừng bán.");
             }
 
             if (package.Price <= 0 ||
@@ -56,9 +52,7 @@ public class SubscriptionService : ISubscriptionService
                 package.DurationInDays <= 0 ||
                 package.DurationInDays > 36500)
             {
-                throw new BusinessException(
-                    409,
-                    "Giá hoặc thời hạn gói tập không hợp lệ.");
+                throw new BusinessException(409, "Giá hoặc thời hạn gói tập không hợp lệ.");
             }
 
             var now = DateTime.UtcNow;
@@ -90,14 +84,14 @@ public class SubscriptionService : ISubscriptionService
                 if (targetPackageType == PackageTypeHelper.Standard)
                 {
                     // Đang có gói tập cơ bản (Standard) còn hạn -> NÂNG CẤP GÓI
-                    if (package.Price <= currentSameTypeSub.AgreedPrice)
+                    if (package.Price <= currentSameTypeSub.Package.Price)
                     {
                         throw new BusinessException(409,
                             $"Hội viên đang sử dụng gói {currentSameTypeSub.Package.PackageName}. Chỉ có thể nâng cấp lên gói có giá trị cao hơn.");
                     }
 
                     // TÍNH TIỀN CHÊNH LỆCH BÙ THÊM
-                    agreedPrice = package.Price - currentSameTypeSub.AgreedPrice;
+                    agreedPrice = package.Price - currentSameTypeSub.Package.Price;
                     auditDetails = $"Tạo yêu cầu NÂNG CẤP gói từ #{currentSameTypeSub.Id} ({currentSameTypeSub.Package.PackageName}) lên #{package.Id} ({package.PackageName}), số tiền chênh lệch: {agreedPrice:N0}đ.";
                 }
                 else
@@ -207,7 +201,7 @@ public class SubscriptionService : ISubscriptionService
             };
         }
 
-        if (targetPackage.Price <= currentSameType.AgreedPrice)
+        if (targetPackage.Price <= currentSameType.Package.Price)
         {
             return new UpgradePreviewDTO
             {
@@ -224,7 +218,7 @@ public class SubscriptionService : ISubscriptionService
             };
         }
 
-        var discount = currentSameType.AgreedPrice;
+        var discount = currentSameType.Package.Price;
         var amountToPay = targetPackage.Price - discount;
         var newStartDate = currentSameType.StartDate ?? now;
         var newEndDate = newStartDate.AddDays(targetPackage.DurationInDays);
@@ -288,9 +282,7 @@ public class SubscriptionService : ISubscriptionService
         {
             if (actor.Role != "Member")
             {
-                throw new BusinessException(
-                    403,
-                    "Bạn không có quyền xem đăng ký gói.");
+                throw new BusinessException(403, "Bạn không có quyền xem đăng ký gói.");
             }
 
             query = query.Where(
@@ -302,9 +294,7 @@ public class SubscriptionService : ISubscriptionService
 
         if (subscription == null)
         {
-            throw new BusinessException(
-                404,
-                "Không tìm thấy đăng ký gói.");
+            throw new BusinessException(404, "Không tìm thấy đăng ký gói.");
         }
 
         return ToDto(subscription, DateTime.UtcNow);
@@ -325,34 +315,26 @@ public class SubscriptionService : ISubscriptionService
 
             if (!IsStaff(actor))
             {
-                throw new BusinessException(
-                    403,
-                    "Chỉ lễ tân hoặc quản lý được xác nhận thu tiền.");
+                throw new BusinessException(403, "Chỉ lễ tân hoặc quản lý được xác nhận thu tiền.");
             }
 
             if (!request.PaymentReceived)
             {
-                throw new BusinessException(
-                    400,
-                    "Cần xác nhận đã nhận tiền trước khi lập biên lai.");
+                throw new BusinessException(400, "Cần xác nhận đã nhận tiền trước khi lập biên lai.");
             }
 
             if (request.PaymentMethod != "Cash" &&
                 request.PaymentMethod != "BankTransfer" &&
                 request.PaymentMethod != "CreditCard")
             {
-                throw new BusinessException(
-                    400,
-                    "Phương thức thanh toán phải là Cash, BankTransfer hoặc CreditCard.");
+                throw new BusinessException(400, "Phương thức thanh toán phải là Cash, BankTransfer hoặc CreditCard.");
             }
 
             if (request.Amount <= 0 ||
                 request.Amount > 9999999999999999.99m ||
                 decimal.Round(request.Amount, 2) != request.Amount)
             {
-                throw new BusinessException(
-                    400,
-                    "Số tiền phải dương và có tối đa hai chữ số thập phân.");
+                throw new BusinessException(400, "Số tiền phải dương và có tối đa hai chữ số thập phân.");
             }
 
             var subscription = await _context.MemberSubscriptions
@@ -365,23 +347,17 @@ public class SubscriptionService : ISubscriptionService
 
             if (subscription == null)
             {
-                throw new BusinessException(
-                    404,
-                    "Không tìm thấy đăng ký gói.");
+                throw new BusinessException(404, "Không tìm thấy đăng ký gói.");
             }
 
             if (!subscription.Member.User.IsActive)
             {
-                throw new BusinessException(
-                    409,
-                    "Tài khoản hội viên đã ngừng hoạt động.");
+                throw new BusinessException(409, "Tài khoản hội viên đã ngừng hoạt động.");
             }
 
             if (subscription.Status != "Pending")
             {
-                throw new BusinessException(
-                    409,
-                    "Chỉ xác nhận thanh toán cho đăng ký đang Pending.");
+                throw new BusinessException(409, "Chỉ xác nhận thanh toán cho đăng ký đang Pending.");
             }
 
             var alreadyPaid = await _context.Payments.AnyAsync(
@@ -392,9 +368,7 @@ public class SubscriptionService : ISubscriptionService
 
             if (alreadyPaid)
             {
-                throw new BusinessException(
-                    409,
-                    "Đăng ký gói đã được thanh toán.");
+                throw new BusinessException(409, "Đăng ký gói đã được thanh toán.");
             }
 
             // Chặn thu thêm tiền khi còn giao dịch chờ hoặc cần đối soát.
@@ -405,17 +379,13 @@ public class SubscriptionService : ISubscriptionService
             if (subscription.AgreedPrice <= 0 ||
                 request.Amount != subscription.AgreedPrice)
             {
-                throw new BusinessException(
-                    400,
-                    "Số tiền phải bằng giá đã chốt của đăng ký gói.");
+                throw new BusinessException(400, "Số tiền phải bằng giá đã chốt của đăng ký gói.");
             }
 
             if (subscription.DurationInDays <= 0 ||
                 subscription.DurationInDays > 36500)
             {
-                throw new BusinessException(
-                    409,
-                    "Thời hạn đăng ký gói không hợp lệ.");
+                throw new BusinessException(409, "Thời hạn đăng ký gói không hợp lệ.");
             }
 
             var now = DateTime.UtcNow;
@@ -450,28 +420,28 @@ public class SubscriptionService : ISubscriptionService
             // Lấy các gói Active về RAM trước (PostgreSQL không dịch được hàm C#)
             var activeSubs = await _context.MemberSubscriptions
                 .Include(s => s.Package)
-                .Where(s => s.MemberId == subscription.MemberId && s.Id != subscription.Id && s.Status == "Active" && (s.EndDate == null || s.EndDate > now))
+                .Where(s => s.MemberId == subscription.MemberId &&
+                            s.Id != subscription.Id &&
+                            s.Status == "Active" &&
+                            (s.EndDate == null || s.EndDate > now))
                 .ToListAsync(cancellationToken);
 
             // Lọc loại gói trong bộ nhớ
             var oldSub = activeSubs.FirstOrDefault(s =>
                 s.Package != null && PackageTypeHelper.GetPackageType(s.Package.PackageName, s.Package.Description) == targetType);
 
-            if (oldSub != null && targetType == PackageTypeHelper.Standard)
-            {
-                subscription.StartDate = oldSub.StartDate ?? now;
-                subscription.EndDate = (oldSub.StartDate ?? now).AddDays(subscription.DurationInDays);
-                subscription.Status = "Active";
+            var isUpgrade = oldSub != null && targetType == PackageTypeHelper.Standard;
+            var startDate = isUpgrade ? oldSub!.StartDate ?? now : now;
 
-                oldSub.Status = "Upgraded";
+            subscription.StartDate = startDate;
+            subscription.EndDate = startDate.AddDays(subscription.DurationInDays);
+            subscription.Status = "Active";
+
+            if (isUpgrade)
+            {
+                oldSub!.Status = "Upgraded";
                 AddAudit(actorId, "Update", nameof(MemberSubscription), oldSub.Id,
                     $"Gói #{oldSub.Id} chuyển sang Upgraded sau khi nâng cấp lên gói #{subscription.Id}.");
-            }
-            else
-            {
-                subscription.StartDate = now;
-                subscription.EndDate = now.AddDays(subscription.DurationInDays);
-                subscription.Status = "Active";
             }
 
             await _context.SaveChangesAsync(cancellationToken);
@@ -518,9 +488,7 @@ public class SubscriptionService : ISubscriptionService
             {
                 if (actor.Role != "Member")
                 {
-                    throw new BusinessException(
-                        403,
-                        "Bạn không có quyền hủy đăng ký gói.");
+                    throw new BusinessException(403, "Bạn không có quyền hủy đăng ký gói.");
                 }
 
                 query = query.Where(
@@ -532,9 +500,7 @@ public class SubscriptionService : ISubscriptionService
 
             if (subscription == null)
             {
-                throw new BusinessException(
-                    404,
-                    "Không tìm thấy đăng ký gói.");
+                throw new BusinessException(404, "Không tìm thấy đăng ký gói.");
             }
 
             var alreadyPaid = subscription.Payments.Any(
@@ -542,9 +508,7 @@ public class SubscriptionService : ISubscriptionService
 
             if (subscription.Status != "Pending" || alreadyPaid)
             {
-                throw new BusinessException(
-                    409,
-                    "Chỉ hủy đăng ký Pending chưa thanh toán.");
+                throw new BusinessException(409, "Chỉ hủy đăng ký Pending chưa thanh toán.");
             }
 
             // Phải xử lý link thanh toán trước khi hủy gói.
@@ -595,16 +559,12 @@ public class SubscriptionService : ISubscriptionService
 
         if (payment.Status == "NeedsReview")
         {
-            throw new BusinessException(
-                409,
-                $"Giao dịch #{payment.Id} cần đối soát. " +
-                "Chưa thể thu thêm tiền hoặc hủy gói.");
+            throw new BusinessException(409,
+                $"Giao dịch #{payment.Id} cần đối soát. Chưa thể thu thêm tiền hoặc hủy gói.");
         }
 
-        throw new BusinessException(
-            409,
-            $"Giao dịch #{payment.Id} đang chờ thanh toán. " +
-            "Hãy đồng bộ hoặc hủy link payOS thành công trước.");
+        throw new BusinessException(409,
+            $"Giao dịch #{payment.Id} đang chờ thanh toán. Hãy đồng bộ hoặc hủy link payOS thành công trước.");
     }
 
     private IQueryable<MemberSubscription> ReadSubscriptions()
@@ -627,19 +587,14 @@ public class SubscriptionService : ISubscriptionService
 
         if (actor == null)
         {
-            throw new BusinessException(
-                401,
-                "Tài khoản không hoạt động. Vui lòng đăng nhập lại.");
+            throw new BusinessException(401, "Tài khoản không hoạt động. Vui lòng đăng nhập lại.");
         }
 
         return actor;
     }
 
-    private static bool IsStaff(User user)
-    {
-        return user.Role == "Manager" ||
-               user.Role == "Receptionist";
-    }
+    private static bool IsStaff(User user) =>
+        user.Role is UserRoles.Manager or UserRoles.Receptionist;
 
     // Xác định hội viên: tự thao tác hoặc được nhân viên thao tác hộ.
     private async Task<Member> ResolveMemberAsync(
@@ -660,9 +615,7 @@ public class SubscriptionService : ISubscriptionService
         {
             if (!IsStaff(actor))
             {
-                throw new BusinessException(
-                    403,
-                    "Chỉ lễ tân hoặc quản lý được chọn hội viên khác.");
+                throw new BusinessException(403, "Chỉ lễ tân hoặc quản lý được chọn hội viên khác.");
             }
 
             query = query.Where(
@@ -672,9 +625,7 @@ public class SubscriptionService : ISubscriptionService
         {
             if (actor.Role != "Member")
             {
-                throw new BusinessException(
-                    403,
-                    "Nhân viên cần chọn hội viên cụ thể.");
+                throw new BusinessException(403, "Nhân viên cần chọn hội viên cụ thể.");
             }
 
             query = query.Where(
@@ -686,16 +637,12 @@ public class SubscriptionService : ISubscriptionService
 
         if (member == null)
         {
-            throw new BusinessException(
-                404,
-                "Không tìm thấy hồ sơ hội viên.");
+            throw new BusinessException(404, "Không tìm thấy hồ sơ hội viên.");
         }
 
         if (requireActive && !member.User.IsActive)
         {
-            throw new BusinessException(
-                409,
-                "Tài khoản hội viên đã ngừng hoạt động.");
+            throw new BusinessException(409, "Tài khoản hội viên đã ngừng hoạt động.");
         }
 
         return member;
@@ -722,17 +669,12 @@ public class SubscriptionService : ISubscriptionService
         }
         catch (DbUpdateConcurrencyException)
         {
-            throw new BusinessException(
-                409,
-                "Dữ liệu vừa thay đổi. Vui lòng tải lại và thử lại.");
+            throw new BusinessException(409, "Dữ liệu vừa thay đổi. Vui lòng tải lại và thử lại.");
         }
-        catch (Exception exception) when (
-            IsSqlConcurrencyConflict(exception))
+        catch (Exception exception) when (IsSqlConcurrencyConflict(exception))
         {
-            throw new BusinessException(
-                409,
-                "Có yêu cầu khác đang thay đổi dữ liệu hoặc dữ liệu bị trùng. " +
-                "Vui lòng tải lại và thử lại.");
+            throw new BusinessException(409,
+                "Có yêu cầu khác đang thay đổi dữ liệu hoặc dữ liệu bị trùng. Vui lòng tải lại và thử lại.");
         }
     }
 

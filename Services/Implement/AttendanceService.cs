@@ -16,8 +16,7 @@ public class AttendanceService(AppDbContext context) : IAttendanceService
     {
         if (request.MemberId <= 0 || request.SessionId <= 0)
         {
-            throw new BusinessException(
-                400, "MemberId và SessionId phải lớn hơn 0.");
+            throw new BusinessException(400, "MemberId và SessionId phải lớn hơn 0.");
         }
 
         bool validStatus =
@@ -28,9 +27,7 @@ public class AttendanceService(AppDbContext context) : IAttendanceService
 
         if (!validStatus)
         {
-            throw new BusinessException(
-                400,
-                "Status phải là Present, Absent, Late hoặc Excused.");
+            throw new BusinessException(400, "Status phải là Present, Absent, Late hoặc Excused.");
         }
 
         var session = await GetSessionForActorAsync(
@@ -40,22 +37,19 @@ public class AttendanceService(AppDbContext context) : IAttendanceService
 
         if (session.Status == "Cancelled")
         {
-            throw new BusinessException(
-                409, "Không được điểm danh buổi học đã hủy.");
+            throw new BusinessException(409, "Không được điểm danh buổi học đã hủy.");
         }
 
         // Kiểm tra khung giờ: Chặn điểm danh khi chưa tới ngày/giờ học hoặc đã qua quá lâu
         var now = DateTime.UtcNow;
         if (now < session.StartsAt.AddMinutes(-30))
         {
-            throw new BusinessException(
-                409, "Chưa đến thời gian điểm danh buổi học này (chỉ mở trước giờ bắt đầu 30 phút).");
+            throw new BusinessException(409, "Chưa đến thời gian điểm danh buổi học này (chỉ mở trước giờ bắt đầu 30 phút).");
         }
 
         if (now > session.EndsAt.AddHours(12))
         {
-            throw new BusinessException(
-                409, "Đã quá thời hạn điểm danh cho buổi học này.");
+            throw new BusinessException(409, "Đã quá thời hạn điểm danh cho buổi học này.");
         }
 
         var registration = await context.ClassRegistrations
@@ -70,9 +64,7 @@ public class AttendanceService(AppDbContext context) : IAttendanceService
 
         if (registration == null)
         {
-            throw new BusinessException(
-                409,
-                "Hội viên chưa đăng ký buổi học này hoặc đã hủy đăng ký.");
+            throw new BusinessException(409, "Hội viên chưa đăng ký buổi học này hoặc đã hủy đăng ký.");
         }
 
         var attendance = await context.Attendances
@@ -176,8 +168,7 @@ public class AttendanceService(AppDbContext context) : IAttendanceService
 
         if (actor == null)
         {
-            throw new BusinessException(
-                401, "Tài khoản không hoạt động. Vui lòng đăng nhập lại.");
+            throw new BusinessException(401, "Tài khoản không hoạt động. Vui lòng đăng nhập lại.");
         }
 
         var session = await context.ClassSessions
@@ -187,8 +178,7 @@ public class AttendanceService(AppDbContext context) : IAttendanceService
 
         if (session == null)
         {
-            throw new BusinessException(
-                404, "Không tìm thấy buổi học.");
+            throw new BusinessException(404, "Không tìm thấy buổi học.");
         }
 
         bool isAssignedCoach =
@@ -204,8 +194,7 @@ public class AttendanceService(AppDbContext context) : IAttendanceService
 
         if (!hasPermission)
         {
-            throw new BusinessException(
-                403, "Bạn không có quyền thao tác điểm danh buổi học này.");
+            throw new BusinessException(403, "Bạn không có quyền thao tác điểm danh buổi học này.");
         }
 
         return session;
