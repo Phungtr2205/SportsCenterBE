@@ -24,5 +24,4 @@ public interface IClassService
     Task<AttendanceDTO> CheckInAsync(int actorId, int registrationId, CancellationToken ct = default);
     Task<ReviewDTO> ReviewAsync(int actorId, int registrationId, ReviewRequest request, CancellationToken ct = default);
     Task<PageResult<ReviewDTO>> GetReviewsAsync(int sessionId, int page, int pageSize, CancellationToken ct = default);
-    Task<CoachReviewsDTO> GetCoachReviewsAsync(int coachId, int page, int pageSize, CancellationToken ct = default);
 }

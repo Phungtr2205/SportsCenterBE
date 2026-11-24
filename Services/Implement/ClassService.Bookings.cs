@@ -534,34 +534,4 @@ public partial class ClassService
         return new PageResult<ReviewDTO>(
             items, total, page, pageSize);
     }
-
-    // 8. Điểm trung bình và danh sách đánh giá của một Coach, lấy từ đánh giá các buổi Coach đó dạy.
-    public async Task<CoachReviewsDTO> GetCoachReviewsAsync(
-        int coachId,
-        int page,
-        int pageSize,
-        CancellationToken ct = default)
-    {
-        Pagination(page, pageSize);
-
-        if (!await db.Coaches.AnyAsync(c => c.Id == coachId, ct))
-            throw new BusinessException(404, "Không tìm thấy huấn luyện viên.");
-
-        var query = db.ClassReviews
-            .AsNoTracking()
-            .Where(r => r.Registration.Session!.CoachId == coachId);
-
-        int total = await query.CountAsync(ct);
-        double average = total == 0 ? 0 : Math.Round(await query.AverageAsync(r => (double)r.Rating, ct), 2);
-
-        var items = await query
-            .OrderByDescending(r => r.CreatedAt)
-            .ThenByDescending(r => r.Id)
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
-            .Select(r => new ReviewDTO(r.Id, r.RegistrationId, r.Rating, r.Comment, r.CreatedAt))
-            .ToListAsync(ct);
-
-        return new CoachReviewsDTO(coachId, average, total, new PageResult<ReviewDTO>(items, total, page, pageSize));
-    }
 }

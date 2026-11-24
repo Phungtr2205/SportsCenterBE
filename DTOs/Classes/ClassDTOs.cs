@@ -69,4 +69,3 @@ public record RegistrationDTO(int Id, int MemberId, int ClassId, int? SessionId,
 public record RosterDTO(int RegistrationId, int MemberId, string FullName, string RegistrationStatus, string? AttendanceStatus, DateTime? CheckInTime);
 public record AttendanceDTO(int Id, int MemberId, int? SessionId, DateTime CheckInTime, string Status);
 public record ReviewDTO(int Id, int RegistrationId, int Rating, string? Comment, DateTime CreatedAt);
-public record CoachReviewsDTO(int CoachId, double AverageRating, int ReviewCount, PageResult<ReviewDTO> Reviews);
