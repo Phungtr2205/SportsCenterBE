@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Mvc;
 using SportsCenterAPI.DTOs.Training;
 using SportsCenterAPI.Helpers;
+using SportsCenterAPI.Services.Implement;
 using SportsCenterAPI.Services.Interface;
 
 namespace SportsCenterAPI.Controllers;
@@ -22,6 +23,28 @@ public class TrainingPlansController(ITrainingPlanService trainingService) : Bas
     }
 
     /// <summary>
+    /// Kiểm tra giáo án mới có trùng với giáo án hội viên đã hoàn thành không
+    /// </summary>
+    [HttpPost("check-duplicate")]
+    [Authorize(Roles = UserRoles.Coach)]
+    public async Task<IActionResult> CheckDuplicate([FromBody] CreateTrainingPlanDTO request)
+    {
+        try
+        {
+            var result = await trainingService.CheckDuplicateCompletedPlanAsync(ActorId(), request);
+            return Ok(new { success = true, data = result });
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return StatusCode(403, new { success = false, message = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { success = false, message = ex.Message });
+        }
+    }
+
+    /// <summary>
     /// Huấn luyện viên tạo kế hoạch tập luyện
     /// </summary>
     [HttpPost]
@@ -32,6 +55,24 @@ public class TrainingPlansController(ITrainingPlanService trainingService) : Bas
         {
             var result = await trainingService.CreatePlanAsync(ActorId(), request);
             return StatusCode(201, new { success = true, data = result });
+        }
+        catch (DuplicateCompletedPlanException ex)
+        {
+            return Conflict(new
+            {
+                success = false,
+                code = "DUPLICATE_COMPLETED_PLAN",
+                message = ex.Message,
+                matchedPlans = ex.MatchedPlans
+            });
+        }
+        catch (BusinessException ex)
+        {
+            return StatusCode(ex.StatusCode, new { success = false, message = ex.Message });
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return StatusCode(403, new { success = false, message = ex.Message });
         }
         catch (Exception ex)
         {
@@ -62,6 +103,10 @@ public class TrainingPlansController(ITrainingPlanService trainingService) : Bas
             await trainingService.UpdateExerciseResultAsync(ActorId(), planExerciseId, request);
             return Ok(new { success = true, message = "Cập nhật tiến độ tập luyện thành công!" });
         }
+        catch (UnauthorizedAccessException ex)
+        {
+            return StatusCode(403, new { success = false, message = ex.Message });
+        }
         catch (Exception ex)
         {
             return BadRequest(new { success = false, message = ex.Message });
@@ -79,6 +124,10 @@ public class TrainingPlansController(ITrainingPlanService trainingService) : Bas
         {
             await trainingService.UpdatePlanStatusAsync(ActorId(), id, status);
             return Ok(new { success = true, message = "Đã cập nhật trạng thái giáo án." });
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return StatusCode(403, new { success = false, message = ex.Message });
         }
         catch (Exception ex)
         {
@@ -98,6 +147,24 @@ public class TrainingPlansController(ITrainingPlanService trainingService) : Bas
             var result = await trainingService.UpdatePlanAsync(ActorId(), id, request);
             return Ok(new { success = true, data = result });
         }
+        catch (DuplicateCompletedPlanException ex)
+        {
+            return Conflict(new
+            {
+                success = false,
+                code = "DUPLICATE_COMPLETED_PLAN",
+                message = ex.Message,
+                matchedPlans = ex.MatchedPlans
+            });
+        }
+        catch (BusinessException ex)
+        {
+            return StatusCode(ex.StatusCode, new { success = false, message = ex.Message });
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return StatusCode(403, new { success = false, message = ex.Message });
+        }
         catch (Exception ex)
         {
             return BadRequest(new { success = false, message = ex.Message });
@@ -115,6 +182,36 @@ public class TrainingPlansController(ITrainingPlanService trainingService) : Bas
         {
             await trainingService.DeletePlanAsync(ActorId(), id);
             return Ok(new { success = true, message = "Đã xóa giáo án." });
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return StatusCode(403, new { success = false, message = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { success = false, message = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Hội viên gửi yêu cầu thay đổi giáo án tới huấn luyện viên
+    /// </summary>
+    [HttpPost("{id:int}/request-change")]
+    [Authorize(Roles = UserRoles.Member)]
+    public async Task<IActionResult> RequestChange(int id, [FromBody] RequestPlanChangeDTO request)
+    {
+        try
+        {
+            await trainingService.RequestPlanChangeAsync(ActorId(), id, request);
+            return Ok(new { success = true, message = "Đã gửi yêu cầu thay đổi giáo án tới huấn luyện viên." });
+        }
+        catch (BusinessException ex)
+        {
+            return StatusCode(ex.StatusCode, new { success = false, message = ex.Message });
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return StatusCode(403, new { success = false, message = ex.Message });
         }
         catch (Exception ex)
         {

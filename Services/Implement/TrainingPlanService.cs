@@ -1,13 +1,27 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using SportsCenterAPI.Data;
-using SportsCenterAPI.Models;
 using SportsCenterAPI.DTOs.Training;
+using SportsCenterAPI.Helpers;
+using SportsCenterAPI.Models;
 using SportsCenterAPI.Services.Interface;
 
 namespace SportsCenterAPI.Services.Implement;
 
+public sealed class DuplicateCompletedPlanException(
+    string message,
+    IReadOnlyList<MatchedCompletedPlanDTO> matchedPlans) : Exception(message)
+{
+    public int StatusCode => 409;
+    public IReadOnlyList<MatchedCompletedPlanDTO> MatchedPlans { get; } = matchedPlans;
+}
+
 public class TrainingPlanService(AppDbContext context) : ITrainingPlanService
 {
+    private static readonly HashSet<string> AllowedStatuses = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "Active", "Completed", "Cancelled"
+    };
+
     private async Task EnsureDefaultExercisesAsync()
     {
         if (!await context.Exercises.AnyAsync())
@@ -26,8 +40,34 @@ public class TrainingPlanService(AppDbContext context) : ITrainingPlanService
         }
     }
 
+    public async Task<DuplicatePlanCheckResponseDTO> CheckDuplicateCompletedPlanAsync(
+        int coachUserId, CreateTrainingPlanDTO request)
+    {
+        _ = await context.Coaches.AsNoTracking().FirstOrDefaultAsync(c => c.UserId == coachUserId)
+            ?? throw new UnauthorizedAccessException("Chỉ huấn luyện viên mới được kiểm tra giáo án.");
+
+        var exercises = request.Exercises ?? [];
+        var matched = await FindMatchingCompletedPlansAsync(
+            request.MemberId,
+            request.PlanName,
+            request.Goal,
+            exercises.Select(e => e.ExerciseId),
+            excludePlanId: null);
+
+        if (matched.Count == 0)
+            return new DuplicatePlanCheckResponseDTO(false, null, Array.Empty<MatchedCompletedPlanDTO>());
+
+        return new DuplicatePlanCheckResponseDTO(
+            true,
+            $"Hội viên đã thực hiện giáo án này (\"{matched[0].PlanName}\"). Bạn có thể chỉnh sửa, tạo lại bằng AI hoặc xác nhận để hội viên tập lại.",
+            matched);
+    }
+
     public async Task<TrainingPlanResponseDTO> CreatePlanAsync(int coachUserId, CreateTrainingPlanDTO request)
     {
+        if (string.IsNullOrWhiteSpace(request.PlanName) || string.IsNullOrWhiteSpace(request.Goal))
+            throw new ArgumentException("Vui lòng nhập đầy đủ tên giáo án và mục tiêu.");
+
         var coach = await context.Coaches
             .Include(c => c.User)
             .FirstOrDefaultAsync(c => c.UserId == coachUserId)
@@ -38,28 +78,49 @@ public class TrainingPlanService(AppDbContext context) : ITrainingPlanService
             .FirstOrDefaultAsync(m => m.Id == request.MemberId)
             ?? throw new ArgumentException("Không tìm thấy học viên.");
 
-        var planExercises = await BuildPlanExercisesAsync(request.Exercises);
+        var (startUtc, endUtc) = NormalizeDateRange(request.StartDate, request.EndDate);
+        var exercises = request.Exercises ?? [];
+
+        var matched = await FindMatchingCompletedPlansAsync(
+            request.MemberId,
+            request.PlanName,
+            request.Goal,
+            exercises.Select(e => e.ExerciseId),
+            excludePlanId: null);
+
+        if (matched.Count > 0 && !request.ConfirmRepeat)
+        {
+            throw new DuplicateCompletedPlanException(
+                $"Hội viên đã thực hiện giáo án này (\"{matched[0].PlanName}\"). Bạn có thể chỉnh sửa, tạo lại bằng AI hoặc xác nhận để hội viên tập lại.",
+                matched);
+        }
+
+        await EnsureDefaultExercisesAsync();
+        var planExercises = await BuildPlanExercisesAsync(exercises);
 
         var plan = new TrainingPlan
         {
             PlanName = request.PlanName.Trim(),
-            Goal = request.Goal,
+            Goal = request.Goal.Trim(),
             MemberId = request.MemberId,
             CoachId = coach.Id,
-            StartDate = ToUtc(request.StartDate),
-            EndDate = ToUtc(request.EndDate),
+            StartDate = startUtc,
+            EndDate = endUtc,
             Status = "Active",
             Exercises = planExercises
         };
 
         context.TrainingPlans.Add(plan);
 
-        // Tự động gửi thông báo cho Học viên
+        var repeatHint = matched.Count > 0
+            ? $" Lưu ý: Hội viên đã thực hiện giáo án này trước đây (\"{matched[0].PlanName}\"). Bạn có thể tập lại hoặc gửi yêu cầu thay đổi cho HLV."
+            : string.Empty;
+
         context.Notifications.Add(new Notification
         {
             UserId = member.UserId,
-            Title = "Giáo án tập luyện mới",
-            Content = $"HLV {coach.User.FullName} vừa tạo giáo án \"{plan.PlanName}\" cho bạn.",
+            Title = matched.Count > 0 ? "Giáo án tập luyện mới (Đã từng thực hiện)" : "Giáo án tập luyện mới",
+            Content = $"HLV {coach.User.FullName} vừa tạo giáo án \"{plan.PlanName}\" cho bạn.{repeatHint}",
             SentAt = DateTime.UtcNow
         });
 
@@ -68,21 +129,125 @@ public class TrainingPlanService(AppDbContext context) : ITrainingPlanService
         return await GetPlanByIdAsync(plan.Id);
     }
 
+    public async Task<TrainingPlanResponseDTO> UpdatePlanAsync(int coachUserId, int planId, CreateTrainingPlanDTO request)
+    {
+        if (string.IsNullOrWhiteSpace(request.PlanName) || string.IsNullOrWhiteSpace(request.Goal))
+            throw new ArgumentException("Vui lòng nhập đầy đủ tên giáo án và mục tiêu.");
+
+        var coach = await context.Coaches
+            .Include(c => c.User)
+            .FirstOrDefaultAsync(c => c.UserId == coachUserId)
+            ?? throw new UnauthorizedAccessException("Chỉ huấn luyện viên mới được chỉnh sửa giáo án.");
+
+        var plan = await context.TrainingPlans
+            .Include(p => p.Member)
+            .Include(p => p.Exercises)
+            .FirstOrDefaultAsync(p => p.Id == planId)
+            ?? throw new ArgumentException("Không tìm thấy giáo án.");
+
+        if (plan.CoachId != coach.Id)
+            throw new UnauthorizedAccessException("Bạn chỉ có thể chỉnh sửa giáo án do chính mình phụ trách.");
+
+        if (request.MemberId != plan.MemberId)
+            throw new ArgumentException("Không thể chuyển giáo án sang hội viên khác.");
+
+        if (!string.Equals(plan.Status, "Active", StringComparison.OrdinalIgnoreCase))
+            throw new BusinessException(409, "Chỉ có thể chỉnh sửa giáo án đang áp dụng (Active).");
+
+        var (startUtc, endUtc) = NormalizeDateRange(request.StartDate, request.EndDate);
+        var exercises = request.Exercises ?? [];
+
+        var matched = await FindMatchingCompletedPlansAsync(
+            plan.MemberId,
+            request.PlanName,
+            request.Goal,
+            exercises.Select(e => e.ExerciseId),
+            excludePlanId: plan.Id);
+
+        if (matched.Count > 0 && !request.ConfirmRepeat)
+        {
+            throw new DuplicateCompletedPlanException(
+                $"Hội viên đã thực hiện giáo án này (\"{matched[0].PlanName}\"). Bạn có thể chỉnh sửa lại hoặc xác nhận để hội viên tập lại.",
+                matched);
+        }
+
+        await EnsureDefaultExercisesAsync();
+        var updatedExercises = await BuildPlanExercisesAsync(exercises);
+
+        plan.PlanName = request.PlanName.Trim();
+        plan.Goal = request.Goal.Trim();
+        plan.StartDate = startUtc;
+        plan.EndDate = endUtc;
+
+        context.TrainingPlanExercises.RemoveRange(plan.Exercises);
+        plan.Exercises.Clear();
+        foreach (var item in updatedExercises)
+            plan.Exercises.Add(item);
+
+        var repeatHint = matched.Count > 0
+            ? $" Lưu ý: Hội viên đã thực hiện giáo án này trước đây (\"{matched[0].PlanName}\")."
+            : string.Empty;
+
+        context.Notifications.Add(new Notification
+        {
+            UserId = plan.Member.UserId,
+            Title = "Giáo án tập luyện đã được cập nhật",
+            Content = $"HLV {coach.User.FullName} đã cập nhật giáo án \"{plan.PlanName}\" cho bạn.{repeatHint}",
+            SentAt = DateTime.UtcNow
+        });
+
+        await context.SaveChangesAsync();
+
+        return await GetPlanByIdAsync(plan.Id);
+    }
+
+    public async Task DeletePlanAsync(int coachUserId, int planId)
+    {
+        var coach = await context.Coaches
+            .Include(c => c.User)
+            .FirstOrDefaultAsync(c => c.UserId == coachUserId)
+            ?? throw new UnauthorizedAccessException("Chỉ huấn luyện viên mới được xóa giáo án.");
+
+        var plan = await context.TrainingPlans
+            .Include(p => p.Member)
+            .Include(p => p.Exercises)
+            .FirstOrDefaultAsync(p => p.Id == planId)
+            ?? throw new ArgumentException("Không tìm thấy giáo án.");
+
+        if (plan.CoachId != coach.Id)
+            throw new UnauthorizedAccessException("Bạn chỉ có thể xóa giáo án do chính mình phụ trách.");
+
+        context.TrainingPlanExercises.RemoveRange(plan.Exercises);
+        context.TrainingPlans.Remove(plan);
+
+        context.Notifications.Add(new Notification
+        {
+            UserId = plan.Member.UserId,
+            Title = "Giáo án tập luyện đã bị xóa",
+            Content = $"HLV {coach.User.FullName} đã xóa giáo án \"{plan.PlanName}\".",
+            SentAt = DateTime.UtcNow
+        });
+
+        await context.SaveChangesAsync();
+    }
+
     public async Task<IEnumerable<TrainingPlanResponseDTO>> GetMemberPlansAsync(int memberId)
     {
-        var plans = await context.TrainingPlans
+        var allPlans = await context.TrainingPlans
+            .AsNoTracking()
+            .Include(x => x.Member).ThenInclude(m => m.User)
+            .Include(x => x.Coach).ThenInclude(c => c!.User)
+            .Include(x => x.Exercises).ThenInclude(e => e.Exercise)
             .Where(p => p.MemberId == memberId)
             .OrderByDescending(p => p.StartDate)
             .ThenByDescending(p => p.Id)
-            .Select(p => p.Id)
             .ToListAsync();
 
-        var result = new List<TrainingPlanResponseDTO>();
-        foreach (var id in plans)
-        {
-            result.Add(await GetPlanByIdAsync(id));
-        }
-        return result;
+        var completedPlans = allPlans
+            .Where(p => string.Equals(p.Status, "Completed", StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        return allPlans.Select(p => MapToDto(p, completedPlans)).ToList();
     }
 
     public async Task<bool> UpdateExerciseResultAsync(int coachUserId, int planExerciseId, UpdateExerciseResultDTO request)
@@ -102,7 +267,6 @@ public class TrainingPlanService(AppDbContext context) : ITrainingPlanService
 
         exercise.Notes = request.Notes.Trim();
 
-        // Tự động gửi thông báo tiến độ cho Học viên
         context.Notifications.Add(new Notification
         {
             UserId = exercise.TrainingPlan.Member.UserId,
@@ -117,8 +281,14 @@ public class TrainingPlanService(AppDbContext context) : ITrainingPlanService
 
     public async Task<bool> UpdatePlanStatusAsync(int coachUserId, int planId, string status)
     {
-        var coach = await context.Coaches.FirstOrDefaultAsync(c => c.UserId == coachUserId)
+        var coach = await context.Coaches
+            .Include(c => c.User)
+            .FirstOrDefaultAsync(c => c.UserId == coachUserId)
             ?? throw new UnauthorizedAccessException("Tài khoản không phải là huấn luyện viên.");
+
+        var normalizedStatus = AllowedStatuses.FirstOrDefault(s =>
+            string.Equals(s, status?.Trim(), StringComparison.OrdinalIgnoreCase))
+            ?? throw new ArgumentException("Trạng thái giáo án chỉ chấp nhận: Active, Completed, Cancelled.");
 
         var plan = await context.TrainingPlans
             .Include(p => p.Member)
@@ -128,88 +298,139 @@ public class TrainingPlanService(AppDbContext context) : ITrainingPlanService
         if (plan.CoachId != coach.Id)
             throw new UnauthorizedAccessException("Bạn chỉ có thể cập nhật giáo án do chính mình phụ trách.");
 
-        plan.Status = status.Trim();
+        plan.Status = normalizedStatus;
+
+        if (normalizedStatus == "Completed")
+        {
+            context.Notifications.Add(new Notification
+            {
+                UserId = plan.Member.UserId,
+                Title = "Hoàn thành giáo án tập luyện",
+                Content = $"HLV {coach.User.FullName} đã đánh dấu hoàn thành giáo án \"{plan.PlanName}\".",
+                SentAt = DateTime.UtcNow
+            });
+        }
+
         await context.SaveChangesAsync();
         return true;
     }
 
-    public async Task<TrainingPlanResponseDTO> UpdatePlanAsync(int coachUserId, int planId, CreateTrainingPlanDTO request)
+    public async Task<bool> RequestPlanChangeAsync(int memberUserId, int planId, RequestPlanChangeDTO request)
     {
-        var plan = await GetOwnedPlanAsync(coachUserId, planId);
+        if (request is null || string.IsNullOrWhiteSpace(request.Reason))
+            throw new ArgumentException("Vui lòng nhập nội dung bạn muốn thay đổi.");
 
-        if (plan.MemberId != request.MemberId)
-            throw new ArgumentException("Không thể chuyển giáo án sang học viên khác.");
-
-        var planExercises = await BuildPlanExercisesAsync(request.Exercises);
-
-        // Thay toàn bộ danh sách bài tập cũ bằng danh sách mới
-        context.TrainingPlanExercises.RemoveRange(plan.Exercises);
-        plan.PlanName = request.PlanName.Trim();
-        plan.Goal = request.Goal;
-        plan.StartDate = ToUtc(request.StartDate);
-        plan.EndDate = ToUtc(request.EndDate);
-        plan.Exercises = planExercises;
-
-        context.Notifications.Add(new Notification
-        {
-            UserId = plan.Member.UserId,
-            Title = "Giáo án được cập nhật",
-            Content = $"Giáo án \"{plan.PlanName}\" của bạn vừa được huấn luyện viên cập nhật.",
-            SentAt = DateTime.UtcNow
-        });
-
-        await context.SaveChangesAsync();
-        return await GetPlanByIdAsync(plan.Id);
-    }
-
-    public async Task DeletePlanAsync(int coachUserId, int planId)
-    {
-        var plan = await GetOwnedPlanAsync(coachUserId, planId);
-
-        // Khóa ngoại là Restrict nên phải xóa bài tập trước khi xóa giáo án
-        context.TrainingPlanExercises.RemoveRange(plan.Exercises);
-        context.TrainingPlans.Remove(plan);
-
-        context.Notifications.Add(new Notification
-        {
-            UserId = plan.Member.UserId,
-            Title = "Giáo án đã bị xóa",
-            Content = $"Huấn luyện viên đã xóa giáo án \"{plan.PlanName}\" của bạn.",
-            SentAt = DateTime.UtcNow
-        });
-
-        await context.SaveChangesAsync();
-    }
-
-    private async Task<TrainingPlan> GetOwnedPlanAsync(int coachUserId, int planId)
-    {
-        var coach = await context.Coaches.FirstOrDefaultAsync(c => c.UserId == coachUserId)
-            ?? throw new UnauthorizedAccessException("Tài khoản không phải là huấn luyện viên.");
+        var member = await context.Members
+            .Include(m => m.User)
+            .FirstOrDefaultAsync(m => m.UserId == memberUserId)
+            ?? throw new UnauthorizedAccessException("Không tìm thấy hồ sơ hội viên.");
 
         var plan = await context.TrainingPlans
-            .Include(p => p.Member)
-            .Include(p => p.Exercises)
+            .Include(p => p.Coach)
             .FirstOrDefaultAsync(p => p.Id == planId)
             ?? throw new ArgumentException("Không tìm thấy giáo án.");
 
-        if (plan.CoachId != coach.Id)
-            throw new UnauthorizedAccessException("Bạn chỉ có thể sửa hoặc xóa giáo án do chính mình phụ trách.");
+        if (plan.MemberId != member.Id)
+            throw new UnauthorizedAccessException("Bạn chỉ có thể gửi yêu cầu cho giáo án của chính mình.");
 
-        return plan;
+        if (!string.Equals(plan.Status, "Active", StringComparison.OrdinalIgnoreCase))
+            throw new BusinessException(409, "Chỉ có thể yêu cầu điều chỉnh giáo án đang áp dụng.");
+
+        if (plan.Coach == null)
+            throw new BusinessException(409, "Giáo án này chưa có huấn luyện viên phụ trách.");
+
+        context.Notifications.Add(new Notification
+        {
+            UserId = plan.Coach.UserId,
+            Title = "Yêu cầu điều chỉnh giáo án",
+            Content = $"Hội viên {member.User.FullName} muốn thay đổi giáo án \"{plan.PlanName}\" (#{plan.Id}): {request.Reason.Trim()}",
+            SentAt = DateTime.UtcNow
+        });
+
+        await context.SaveChangesAsync();
+        return true;
     }
 
-    private async Task<List<TrainingPlanExercise>> BuildPlanExercisesAsync(List<CreatePlanExerciseDTO> exercises)
+    public async Task<IEnumerable<object>> GetExercisesCatalogAsync()
     {
-        // Đảm bảo danh mục bài tập mẫu luôn có sẵn trong DB
         await EnsureDefaultExercisesAsync();
 
+        return await context.Exercises
+            .AsNoTracking()
+            .OrderBy(e => e.Id)
+            .Select(e => new
+            {
+                e.Id,
+                e.ExerciseName,
+                e.MuscleGroup,
+                e.Description,
+                e.VideoUrl
+            })
+            .ToListAsync();
+    }
+
+    private async Task<List<MatchedCompletedPlanDTO>> FindMatchingCompletedPlansAsync(
+        int memberId,
+        string planName,
+        string? goal,
+        IEnumerable<int> exerciseIds,
+        int? excludePlanId)
+    {
+        var completed = await context.TrainingPlans
+            .AsNoTracking()
+            .Include(p => p.Exercises)
+            .Where(p => p.MemberId == memberId
+                && p.Status == "Completed"
+                && (!excludePlanId.HasValue || p.Id != excludePlanId.Value))
+            .OrderByDescending(p => p.EndDate)
+            .ThenByDescending(p => p.Id)
+            .ToListAsync();
+
+        var normalizedExerciseIds = exerciseIds.Distinct().OrderBy(id => id).ToList();
+
+        return completed
+            .Where(p => IsSamePlan(p, planName, goal, normalizedExerciseIds))
+            .Select(p => new MatchedCompletedPlanDTO(
+                p.Id,
+                p.PlanName,
+                p.Goal ?? string.Empty,
+                p.StartDate,
+                p.EndDate))
+            .ToList();
+    }
+
+    private static bool IsSamePlan(
+        TrainingPlan completedPlan,
+        string planName,
+        string? goal,
+        IReadOnlyList<int> normalizedExerciseIds)
+    {
+        var sameNameAndGoal =
+            !string.IsNullOrWhiteSpace(planName) &&
+            string.Equals(completedPlan.PlanName.Trim(), planName.Trim(), StringComparison.OrdinalIgnoreCase) &&
+            string.Equals((completedPlan.Goal ?? string.Empty).Trim(), (goal ?? string.Empty).Trim(), StringComparison.OrdinalIgnoreCase);
+
+        if (sameNameAndGoal) return true;
+
+        if (normalizedExerciseIds.Count == 0) return false;
+
+        var completedExerciseIds = completedPlan.Exercises
+            .Select(e => e.ExerciseId)
+            .Distinct()
+            .OrderBy(id => id)
+            .ToList();
+
+        return completedExerciseIds.SequenceEqual(normalizedExerciseIds);
+    }
+
+    private async Task<List<TrainingPlanExercise>> BuildPlanExercisesAsync(IEnumerable<CreatePlanExerciseDTO> exercises)
+    {
         var planExercises = new List<TrainingPlanExercise>();
         foreach (var e in exercises)
         {
             var existingExercise = await context.Exercises
                 .FirstOrDefaultAsync(ex => ex.Id == e.ExerciseId);
 
-            // Nếu HLV nhập một mã bài tập chưa có, tự động tạo bài tập mới để không bao giờ lỗi khóa ngoại
             if (existingExercise == null)
             {
                 existingExercise = new Exercise
@@ -237,35 +458,52 @@ public class TrainingPlanService(AppDbContext context) : ITrainingPlanService
         return planExercises;
     }
 
-    // Chuyển ngày về chuẩn UTC cho PostgreSQL
-    private static DateTime ToUtc(DateTime value) =>
-        value.Kind == DateTimeKind.Utc ? value : DateTime.SpecifyKind(value, DateTimeKind.Utc);
-
-    public async Task<IEnumerable<object>> GetExercisesCatalogAsync()
+    private static (DateTime StartUtc, DateTime EndUtc) NormalizeDateRange(DateTime start, DateTime end)
     {
-        await EnsureDefaultExercisesAsync();
+        var startUtc = start.Kind == DateTimeKind.Utc
+            ? start
+            : start.Kind == DateTimeKind.Local
+                ? start.ToUniversalTime()
+                : DateTime.SpecifyKind(start, DateTimeKind.Utc);
+        var endUtc = end.Kind == DateTimeKind.Utc
+            ? end
+            : end.Kind == DateTimeKind.Local
+                ? end.ToUniversalTime()
+                : DateTime.SpecifyKind(end, DateTimeKind.Utc);
 
-        return await context.Exercises
-            .AsNoTracking()
-            .OrderBy(e => e.Id)
-            .Select(e => new
-            {
-                e.Id,
-                e.ExerciseName,
-                e.MuscleGroup,
-                e.Description,
-                e.VideoUrl
-            })
-            .ToListAsync();
+        if (endUtc < startUtc)
+            throw new ArgumentException("Ngày kết thúc phải bằng hoặc sau ngày bắt đầu.");
+
+        return (startUtc, endUtc);
     }
 
     private async Task<TrainingPlanResponseDTO> GetPlanByIdAsync(int id)
     {
         var p = await context.TrainingPlans
+            .AsNoTracking()
             .Include(x => x.Member).ThenInclude(m => m.User)
             .Include(x => x.Coach).ThenInclude(c => c!.User)
             .Include(x => x.Exercises).ThenInclude(e => e.Exercise)
             .FirstAsync(x => x.Id == id);
+
+        var priorCompleted = await context.TrainingPlans
+            .AsNoTracking()
+            .Include(x => x.Exercises)
+            .Where(x => x.MemberId == p.MemberId && x.Status == "Completed" && x.Id != p.Id)
+            .OrderByDescending(x => x.EndDate)
+            .ThenByDescending(x => x.Id)
+            .ToListAsync();
+
+        return MapToDto(p, priorCompleted);
+    }
+
+    private static TrainingPlanResponseDTO MapToDto(TrainingPlan p, IReadOnlyList<TrainingPlan> completedPlans)
+    {
+        var pExerciseIds = p.Exercises.Select(e => e.ExerciseId).Distinct().OrderBy(id => id).ToList();
+        var matchedPrev = completedPlans.FirstOrDefault(prev =>
+            prev.Id != p.Id &&
+            (prev.EndDate <= p.StartDate || prev.Id < p.Id) &&
+            IsSamePlan(prev, p.PlanName, p.Goal, pExerciseIds));
 
         return new TrainingPlanResponseDTO
         {
@@ -277,6 +515,11 @@ public class TrainingPlanService(AppDbContext context) : ITrainingPlanService
             StartDate = p.StartDate,
             EndDate = p.EndDate,
             Status = p.Status,
+            HasCompletedBefore = matchedPrev != null,
+            PreviousCompletedPlanId = matchedPrev?.Id,
+            RepeatNotice = matchedPrev != null
+                ? $"Hội viên đã thực hiện giáo án này (\"{matchedPrev.PlanName}\")."
+                : null,
             Exercises = p.Exercises.Select(e => new PlanExerciseResponseDTO
             {
                 Id = e.Id,
