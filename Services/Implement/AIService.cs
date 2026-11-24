@@ -63,10 +63,9 @@ public class AIService(AppDbContext db, HttpClient http, IConfiguration config) 
         if (string.IsNullOrWhiteSpace(goal))
             throw new BusinessException(400, "Vui lòng nhập mục tiêu tập luyện.");
 
-        // Dùng nhận xét đã lưu và điểm danh, không coi giáo án là kết quả đã tập.
-        // 3 giáo án HLV gần nhất của hội viên, nhóm theo từng giáo án để AI thấy cả chu kỳ đã lên kế hoạch.
+        // 3 giáo án đang áp dụng gần nhất của hội viên để nối tiếp chu kỳ đang tập.
         var plannedExercises = await db.TrainingPlans.AsNoTracking()
-            .Where(p => p.MemberId == member.Id)
+            .Where(p => p.MemberId == member.Id && p.Status == "Active")
             .OrderByDescending(p => p.Id).Take(3)
             .Select(p => new {
                 p.PlanName,
@@ -79,6 +78,24 @@ public class AIService(AppDbContext db, HttpClient http, IConfiguration config) 
                     e.Sets,
                     e.Reps,
                     Notes = e.Notes == null ? null : e.Notes.Substring(0, Math.Min(e.Notes.Length, 400))
+                })
+            }).ToListAsync(ct);
+
+        // Tối đa 5 giáo án hội viên này ĐÃ HOÀN THÀNH trước đây để AI tránh lặp lại nguyên bản.
+        var completedPlans = await db.TrainingPlans.AsNoTracking()
+            .Where(p => p.MemberId == member.Id && p.Status == "Completed")
+            .OrderByDescending(p => p.EndDate).ThenByDescending(p => p.Id).Take(5)
+            .Select(p => new {
+                p.PlanName,
+                p.Goal,
+                p.StartDate,
+                p.EndDate,
+                Exercises = p.Exercises.OrderBy(e => e.Id).Take(15).Select(e => new {
+                    e.Exercise.ExerciseName,
+                    e.Sets,
+                    e.Reps,
+                    e.DurationInMinutes,
+                    Notes = e.Notes == null ? null : e.Notes.Substring(0, Math.Min(e.Notes.Length, 200))
                 })
             }).ToListAsync(ct);
 
@@ -95,7 +112,10 @@ public class AIService(AppDbContext db, HttpClient http, IConfiguration config) 
             .ToListAsync(ct))
             .Select(h => new
             {
-                h.Goal, h.Level, h.DaysPerWeek, h.CreatedAt,
+                h.Goal,
+                h.Level,
+                h.DaysPerWeek,
+                h.CreatedAt,
                 Sessions = JsonSerializer.Deserialize<WorkoutPlanResponse>(h.PlanJson)?.Sessions
                     .Select(s => new { s.Title, Exercises = s.Exercises.Select(e => e.ExerciseName) })
             }).ToList();
@@ -156,14 +176,13 @@ public class AIService(AppDbContext db, HttpClient http, IConfiguration config) 
         cá nhân hóa: giữ mạch tiến triển, đổi bớt bài đã lặp lại, tăng nhẹ độ khó khi level giữ nguyên hoặc cao hơn.
         Điều chỉnh bài tập theo giới tính trong profile: nam thường ưu tiên thân trên (ngực, lưng, vai, tay) với mức tạ và số set cao hơn;
         nữ thường ưu tiên thân dưới và core (mông, đùi, bụng), kèm bài săn chắc toàn thân. Đây chỉ là hướng ưu tiên,
-        mục tiêu và previousPlans của hội viên vẫn quan trọng hơn. Thiếu giới tính thì dùng giáo án trung tính.
-        Chỉ dùng profile và previousPlans của hội viên này. Nếu previousPlans rỗng thì lập giáo án mới.
-        plannedExercises là các giáo án HLV trước đây của hội viên (mới nhất trước), gồm bài, sets, reps và ghi chú.
-        Nếu có, xây giáo án mới nối tiếp chúng: không lặp nguyên bài và mức tạ cũ, tăng tiến dần (thêm set/reps hoặc bài khó hơn),
-        đổi bài để tránh chai cơ, giữ lại ghi chú về chấn thương hoặc hạn chế nếu có.
-        plannedExercises chỉ là bài được lên kế hoạch; attendance chỉ là điểm danh.
-        Chưa có dữ liệu kết quả thực hiện bài tập: đưa vào warnings rằng chưa thể đánh giá tiến độ.
-        Không khẳng định học viên đã tập hoặc hoàn thành bất kỳ bài nào từ hai danh sách này.
+        mục tiêu, completedPlans và previousPlans của hội viên vẫn quan trọng hơn. Thiếu giới tính thì dùng giáo án trung tính.
+        Chỉ dùng profile, completedPlans và previousPlans của hội viên này.
+        completedPlans là các giáo án hội viên này ĐÃ HOÀN THÀNH trước đây: không lặp lại nguyên bản bộ bài tập và cấu trúc của completedPlans;
+        hãy ưu tiên đề xuất bài tập mới hoặc tăng tiến phù hợp. Nếu yêu cầu đầu vào chủ đích tập lại nội dung cũ hoặc kho bài tập bị giới hạn trùng,
+        ghi rõ vào warnings rằng hội viên đã thực hiện giáo án tương tự trước đây.
+        plannedExercises là các giáo án HLV đang áp dụng của hội viên; attendance chỉ là điểm danh lớp học.
+        Nếu trong completedPlans/plannedExercises chưa có ghi chú kết quả thực hiện bài tập chi tiết, đưa vào warnings rằng chưa có dữ liệu chi tiết từng bài.
         Nếu tên bài trong giáo án không rõ nghĩa, không tự bịa kỹ thuật hay nhóm cơ của bài đó;
         có thể đề xuất các bài phổ biến phù hợp với mục tiêu thay thế.
 
@@ -179,6 +198,7 @@ public class AIService(AppDbContext db, HttpClient http, IConfiguration config) 
             request.DaysPerWeek,
             profile = BuildProfile(member.DateOfBirth, member.Gender, member.FitnessGoal),
             previousPlans,
+            completedPlans,
             plannedExercises,
             attendance
         }, ContextJsonOptions), ct);
