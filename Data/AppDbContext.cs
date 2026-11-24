@@ -29,6 +29,7 @@ namespace SportsCenterAPI.Data
         public DbSet<ClassSession> ClassSessions { get; set; } = null!;
         public DbSet<CancellationPolicy> CancellationPolicies { get; set; } = null!;
         public DbSet<ClassReview> ClassReviews { get; set; } = null!;
+        public DbSet<CoachReview> CoachReviews { get; set; } = null!;
         public DbSet<SupportTicket> SupportTickets { get; set; } = null!;
         public DbSet<GymCheckIn> GymCheckIns { get; set; } = null!;
         public DbSet<Room> Rooms { get; set; } = null!;
@@ -93,6 +94,25 @@ namespace SportsCenterAPI.Data
                 t.HasCheckConstraint("CK_ClassSessions_Time", "\"EndsAt\" > \"StartsAt\""); // Đã sửa [] thành ""
                 t.HasCheckConstraint("CK_ClassSessions_Capacity", "\"Capacity\" > 0"); // Đã sửa [] thành ""
             });
+
+            modelBuilder.Entity<CoachReview>()
+                .HasIndex(r => new { r.CoachId, r.MemberId })
+                .IsUnique();
+
+            modelBuilder.Entity<CoachReview>()
+                .ToTable(t => t.HasCheckConstraint("CK_CoachReviews_Rating", "\"Rating\" BETWEEN 1 AND 5"));
+
+            modelBuilder.Entity<CoachReview>()
+                .HasOne(r => r.Coach)
+                .WithMany(c => c.Reviews)
+                .HasForeignKey(r => r.CoachId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<CoachReview>()
+                .HasOne(r => r.Member)
+                .WithMany(m => m.CoachReviews)
+                .HasForeignKey(r => r.MemberId)
+                .OnDelete(DeleteBehavior.Restrict);
 
             modelBuilder.Entity<CancellationPolicy>().ToTable(t => t.HasCheckConstraint("CK_CancellationPolicies_Hours", "\"MinimumHoursBeforeStart\" BETWEEN 2 AND 720")); // Đã sửa [] thành ""
             modelBuilder.Entity<CancellationPolicy>().HasData(new CancellationPolicy

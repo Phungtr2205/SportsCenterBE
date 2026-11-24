@@ -160,6 +160,9 @@ builder.Services.AddScoped<IGymCheckInService, GymCheckInService>();
 // Room Service
 builder.Services.AddScoped<IRoomService, RoomService>();
 
+//Review Coach Service
+builder.Services.AddScoped<ICoachReviewService, CoachReviewService>();
+
 // Exercise Service
 
 var app = builder.Build();
