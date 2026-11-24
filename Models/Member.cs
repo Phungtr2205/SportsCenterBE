@@ -24,5 +24,6 @@ namespace SportsCenterAPI.Models
         public ICollection<Attendance> Attendances { get; set; } = new List<Attendance>();
         public ICollection<Payment> Payments { get; set; } = new List<Payment>();
         public ICollection<TrainingPlan> TrainingPlans { get; set; } = new List<TrainingPlan>();
+        public ICollection<CoachReview> CoachReviews { get; set; } = new List<CoachReview>();
     }
 }

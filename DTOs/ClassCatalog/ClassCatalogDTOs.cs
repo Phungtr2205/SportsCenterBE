@@ -50,6 +50,8 @@ public class CoachDTO
     public string? Specialization { get; set; }
     public string? Bio { get; set; }
     public int YearsOfExperience { get; set; }
+    public double? AverageRating { get; set; }
+    public int ReviewCount { get; set; }
 }
 
 public class CoachProfileDTO
@@ -58,4 +60,32 @@ public class CoachProfileDTO
     public string? Specialization { get; set; }
     public string? Bio { get; set; }
     public int YearsOfExperience { get; set; }
+}
+
+public record CoachReviewDTO(
+    int Id,
+    int CoachId,
+    int MemberId,
+    string MemberName,
+    int Rating,
+    string? Comment,
+    DateTime CreatedAt,
+    DateTime? UpdatedAt);
+public record CoachReviewSummaryDTO(
+    int CoachId,
+    string CoachName,
+    double? AverageRating,
+    int ReviewCount,
+    Dictionary<int, int> RatingCounts,
+    IReadOnlyList<CoachReviewDTO> Items,
+    int Total,
+    int Page,
+    int PageSize);
+public class CoachReviewRequest
+{
+    [Range(1, 5, ErrorMessage = "Số sao đánh giá phải từ 1 đến 5.")]
+    public int Rating { get; set; }
+
+    [StringLength(2000, ErrorMessage = "Nhận xét tối đa 2000 ký tự.")]
+    public string? Comment { get; set; }
 }

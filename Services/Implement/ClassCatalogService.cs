@@ -123,13 +123,19 @@ public class ClassCatalogService : IClassCatalogService
                 coach.User.Role == "Coach")
             .OrderBy(coach => coach.Id)
             .Select(coach => new CoachDTO
-            {
-                Id = coach.Id,
-                FullName = coach.User.FullName,
-                Specialization = coach.Specialization,
-                Bio = coach.Bio,
-                YearsOfExperience = coach.YearsOfExperience
-            })
+                {
+                    Id = coach.Id,
+                    FullName = coach.User.FullName,
+                    Specialization = coach.Specialization,
+                    Bio = coach.Bio,
+                    YearsOfExperience = coach.YearsOfExperience,
+                    ReviewCount = _context.CoachReviews.Count(r => r.CoachId == coach.Id),
+                    AverageRating = _context.CoachReviews.Any(r => r.CoachId == coach.Id)
+            ? Math.Round(_context.CoachReviews
+                .Where(r => r.CoachId == coach.Id)
+                .Average(r => (double)r.Rating), 1)
+            : null
+                })
             .ToListAsync(cancellationToken);
 
         return coaches;
