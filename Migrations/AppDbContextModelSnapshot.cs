@@ -383,6 +383,46 @@ namespace SportsCenterAPI.Migrations
                     b.ToTable("Coaches");
                 });
 
+            modelBuilder.Entity("SportsCenterAPI.Models.CoachReview", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("CoachId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Comment")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("MemberId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Rating")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("MemberId");
+
+                    b.HasIndex("CoachId", "MemberId")
+                        .IsUnique();
+
+                    b.ToTable("CoachReviews", t =>
+                        {
+                            t.HasCheckConstraint("CK_CoachReviews_Rating", "\"Rating\" BETWEEN 1 AND 5");
+                        });
+                });
+
             modelBuilder.Entity("SportsCenterAPI.Models.Exercise", b =>
                 {
                     b.Property<int>("Id")
@@ -1203,6 +1243,25 @@ namespace SportsCenterAPI.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("SportsCenterAPI.Models.CoachReview", b =>
+                {
+                    b.HasOne("SportsCenterAPI.Models.Coach", "Coach")
+                        .WithMany("Reviews")
+                        .HasForeignKey("CoachId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("SportsCenterAPI.Models.Member", "Member")
+                        .WithMany("CoachReviews")
+                        .HasForeignKey("MemberId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Coach");
+
+                    b.Navigation("Member");
+                });
+
             modelBuilder.Entity("SportsCenterAPI.Models.GymCheckIn", b =>
                 {
                     b.HasOne("SportsCenterAPI.Models.User", "CheckedByUser")
@@ -1389,6 +1448,8 @@ namespace SportsCenterAPI.Migrations
                 {
                     b.Navigation("Classes");
 
+                    b.Navigation("Reviews");
+
                     b.Navigation("TrainingPlans");
                 });
 
@@ -1400,6 +1461,8 @@ namespace SportsCenterAPI.Migrations
             modelBuilder.Entity("SportsCenterAPI.Models.Member", b =>
                 {
                     b.Navigation("Attendances");
+
+                    b.Navigation("CoachReviews");
 
                     b.Navigation("Payments");
 

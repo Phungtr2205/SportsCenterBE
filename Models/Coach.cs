@@ -16,5 +16,6 @@ namespace SportsCenterAPI.Models
         // Navigation properties
         public ICollection<SportClass> Classes { get; set; } = new List<SportClass>();
         public ICollection<TrainingPlan> TrainingPlans { get; set; } = new List<TrainingPlan>();
+        public ICollection<CoachReview> Reviews { get; set; } = new List<CoachReview>();
     }
 }
