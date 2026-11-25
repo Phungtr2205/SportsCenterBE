@@ -231,8 +231,21 @@ public class TrainingPlanService(AppDbContext context) : ITrainingPlanService
         await context.SaveChangesAsync();
     }
 
-    public async Task<IEnumerable<TrainingPlanResponseDTO>> GetMemberPlansAsync(int memberId)
+    public async Task<IEnumerable<TrainingPlanResponseDTO>> GetMemberPlansAsync(int actorUserId, int memberId)
     {
+        // Hội viên chỉ xem giáo án của mình; Coach, lễ tân, quản lý xem được mọi hội viên.
+        var actorRole = await context.Users
+            .Where(u => u.Id == actorUserId && u.IsActive)
+            .Select(u => u.Role)
+            .SingleOrDefaultAsync()
+            ?? throw new BusinessException(401, "Vui lòng đăng nhập.");
+
+        if (actorRole == UserRoles.Member &&
+            !await context.Members.AnyAsync(m => m.Id == memberId && m.UserId == actorUserId))
+        {
+            throw new BusinessException(403, "Bạn chỉ được xem giáo án của chính mình.");
+        }
+
         var allPlans = await context.TrainingPlans
             .AsNoTracking()
             .Include(x => x.Member).ThenInclude(m => m.User)

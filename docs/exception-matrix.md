@@ -183,6 +183,7 @@ Chi tiết từng API: [api/payments.md](api/payments.md).
 | HTTP | Message | Khi nào |
 |---|---|---|
 | 403 | `Chỉ dành cho HLV.` | |
+| 403 | `Bạn chỉ được xem giáo án của chính mình.` | Member xem giáo án của hội viên khác |
 | 409 | `Chỉ có thể chỉnh sửa giáo án đang áp dụng (Active).` | |
 | 409 | `Chỉ có thể yêu cầu điều chỉnh giáo án đang áp dụng.` | |
 | 409 | `Giáo án này chưa có huấn luyện viên phụ trách.` | Hội viên xin đổi giáo án |

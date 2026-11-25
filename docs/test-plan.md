@@ -248,7 +248,7 @@ Tự động hóa: `GymCheckInServiceTests`.
 | 8.E2 | Tạo giáo án trùng giáo án đã hoàn thành mà không xác nhận | 409 cảnh báo | |
 | 8.E3 | Sửa giáo án đã `Completed` | 409 | |
 | 8.E4 | Xóa bài tập đang có trong giáo án | 409 | |
-| 8.E5 | Member A xem giáo án của Member B | Nên bị chặn. **Hiện code chưa chặn:** `GetMemberPlansAsync` không kiểm tra người gọi (lỗi đã biết) | |
+| 8.E5 | Member A xem giáo án của Member B | 403 `Bạn chỉ được xem giáo án của chính mình.` | |
 
 Tự động hóa: `TrainingPlanServiceTests`.
 
@@ -313,8 +313,8 @@ Chạy: `dotnet test SportsCenterAPI.slnx`. CI GitHub Actions (`ci.yml`) chạy 
 | `ProfileServiceTests` | 4 | Hồ sơ, đổi email |
 | `RoomServiceTests` | 6 | Phòng, trùng tên, kiểm tra trống |
 | `SubscriptionServiceTests` | 8 | Đăng ký, nâng cấp gói, thu tiền tại quầy |
-| `TrainingPlanServiceTests` | 7 | Giáo án: sửa, xóa, trùng, xin đổi |
-| **Tổng** | **65** | |
+| `TrainingPlanServiceTests` | 8 | Giáo án: sửa, xóa, trùng, xin đổi, quyền xem |
+| **Tổng** | **66** | |
 
 ## Chưa có test tự động
 
@@ -326,4 +326,3 @@ Chạy: `dotnet test SportsCenterAPI.slnx`. CI GitHub Actions (`ci.yml`) chạy 
 | Hai giao dịch cùng báo thành công cho một gói | Chưa có test |
 | AI (`AIService`) | Phụ thuộc GroqCloud |
 | Báo cáo doanh thu | Chưa có test |
-| Quyền xem giáo án (`GET /api/TrainingPlans/members/{memberId}`) | Chưa kiểm tra người gọi, Member xem được giáo án của người khác |

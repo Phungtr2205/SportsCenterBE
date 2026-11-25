@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using SportsCenterAPI.DTOs.Training;
+using SportsCenterAPI.Helpers;
 using SportsCenterAPI.Models;
 using SportsCenterAPI.Services.Implement;
 
@@ -155,5 +156,24 @@ public class TrainingPlanServiceTests
 
         Assert.True(await service.RequestPlanChangeAsync(3, planId, new RequestPlanChangeDTO { Reason = "Muốn giảm cường độ bài Squat" }));
         Assert.True(await db.Notifications.AnyAsync(n => n.UserId == CoachUserId && n.Content.Contains("Muốn giảm cường độ bài Squat")));
+    }
+
+    [Fact]
+    public async Task GetMemberPlansAsync_MemberSeesOnlyOwnPlans_CoachSeesAny()
+    {
+        var (db, service, planId) = await SeedAsync();
+        db.Users.Add(new User { Id = 4, FullName = "Other Member", Email = "m2@test.com", Role = "Member" });
+        db.Members.Add(new Member { Id = 2, UserId = 4 });
+        await db.SaveChangesAsync();
+
+        // Chủ giáo án xem được.
+        Assert.Equal(planId, Assert.Single(await service.GetMemberPlansAsync(3, 1)).Id);
+
+        // Hội viên khác đổi memberId trên URL bị chặn.
+        var error = await Assert.ThrowsAsync<BusinessException>(() => service.GetMemberPlansAsync(4, 1));
+        Assert.Equal(403, error.StatusCode);
+
+        // Coach xem được giáo án của hội viên chưa từng phụ trách.
+        Assert.Single(await service.GetMemberPlansAsync(OtherCoachUserId, 1));
     }
 }

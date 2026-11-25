@@ -87,7 +87,7 @@ public class TrainingPlansController(ITrainingPlanService trainingService) : Bas
     [Authorize(Roles = UserRoles.Coach + "," + UserRoles.Member + "," + UserRoles.FrontDesk)]
     public async Task<IActionResult> GetMemberPlans(int memberId)
     {
-        var result = await trainingService.GetMemberPlansAsync(memberId);
+        var result = await trainingService.GetMemberPlansAsync(ActorId(), memberId);
         return Ok(new { success = true, data = result });
     }
 
