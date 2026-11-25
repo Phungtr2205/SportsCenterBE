@@ -187,6 +187,9 @@ Chi tiết từng API: [api/payments.md](api/payments.md).
 | 409 | `Chỉ có thể chỉnh sửa giáo án đang áp dụng (Active).` | |
 | 409 | `Chỉ có thể yêu cầu điều chỉnh giáo án đang áp dụng.` | |
 | 409 | `Giáo án này chưa có huấn luyện viên phụ trách.` | Hội viên xin đổi giáo án |
+| 403 | `Bạn chỉ có thể xác nhận giáo án của chính mình.` | Member xác nhận giáo án của người khác |
+| 409 | `Chỉ đánh dấu đã tập cho giáo án đang áp dụng.` | Member xác nhận giáo án đã hủy |
+| 409 | `Giáo án chưa đến ngày bắt đầu.` | Member xác nhận trước `StartDate` |
 | 409 | `Bài tập này đang được sử dụng trong các giáo án học viên, không thể xóa.` | |
 
 ### AI

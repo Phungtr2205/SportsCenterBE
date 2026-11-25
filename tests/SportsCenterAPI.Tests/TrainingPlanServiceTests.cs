@@ -159,6 +159,28 @@ public class TrainingPlanServiceTests
     }
 
     [Fact]
+    public async Task CompletePlanByMemberAsync_OwnerCompletes_OthersAndNonActiveRejected()
+    {
+        var (db, service, planId) = await SeedAsync();
+        db.Users.Add(new User { Id = 4, FullName = "Other Member", Email = "m2@test.com", Role = "Member" });
+        db.Members.Add(new Member { Id = 2, UserId = 4 });
+        await db.SaveChangesAsync();
+
+        var forbidden = await Assert.ThrowsAsync<BusinessException>(() => service.CompletePlanByMemberAsync(4, planId));
+        Assert.Equal(403, forbidden.StatusCode);
+
+        var result = await service.CompletePlanByMemberAsync(3, planId);
+        Assert.Equal("Completed", result.Status);
+        Assert.True(await db.Notifications.AnyAsync(n => n.UserId == CoachUserId && n.Content.Contains("tập xong")));
+
+        // Bấm lại không lỗi; giáo án đã hủy thì bị chặn.
+        Assert.Equal("Completed", (await service.CompletePlanByMemberAsync(3, planId)).Status);
+        await service.UpdatePlanStatusAsync(CoachUserId, planId, "Cancelled");
+        var conflict = await Assert.ThrowsAsync<BusinessException>(() => service.CompletePlanByMemberAsync(3, planId));
+        Assert.Equal(409, conflict.StatusCode);
+    }
+
+    [Fact]
     public async Task GetMemberPlansAsync_MemberSeesOnlyOwnPlans_CoachSeesAny()
     {
         var (db, service, planId) = await SeedAsync();

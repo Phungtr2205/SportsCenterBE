@@ -12,5 +12,6 @@ public interface ITrainingPlanService
     Task<bool> UpdateExerciseResultAsync(int coachUserId, int planExerciseId, UpdateExerciseResultDTO request);
     Task<bool> UpdatePlanStatusAsync(int coachUserId, int planId, string status);
     Task<bool> RequestPlanChangeAsync(int memberUserId, int planId, RequestPlanChangeDTO request);
+    Task<TrainingPlanResponseDTO> CompletePlanByMemberAsync(int memberUserId, int planId);
     Task<IEnumerable<object>> GetExercisesCatalogAsync();
 }

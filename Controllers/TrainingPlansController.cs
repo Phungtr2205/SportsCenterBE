@@ -194,6 +194,17 @@ public class TrainingPlansController(ITrainingPlanService trainingService) : Bas
     }
 
     /// <summary>
+    /// Hội viên tự xác nhận đã tập xong giáo án
+    /// </summary>
+    [HttpPost("{id:int}/complete")]
+    [Authorize(Roles = UserRoles.Member)]
+    public async Task<IActionResult> Complete(int id)
+    {
+        var result = await trainingService.CompletePlanByMemberAsync(ActorId(), id);
+        return Ok(new { success = true, data = result });
+    }
+
+    /// <summary>
     /// Hội viên gửi yêu cầu thay đổi giáo án tới huấn luyện viên
     /// </summary>
     [HttpPost("{id:int}/request-change")]

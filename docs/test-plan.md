@@ -313,8 +313,8 @@ Chạy: `dotnet test SportsCenterAPI.slnx`. CI GitHub Actions (`ci.yml`) chạy 
 | `ProfileServiceTests` | 4 | Hồ sơ, đổi email |
 | `RoomServiceTests` | 6 | Phòng, trùng tên, kiểm tra trống |
 | `SubscriptionServiceTests` | 8 | Đăng ký, nâng cấp gói, thu tiền tại quầy |
-| `TrainingPlanServiceTests` | 8 | Giáo án: sửa, xóa, trùng, xin đổi, quyền xem |
-| **Tổng** | **66** | |
+| `TrainingPlanServiceTests` | 9 | Giáo án: sửa, xóa, trùng, xin đổi, quyền xem, hội viên tự hoàn thành |
+| **Tổng** | **67** | |
 
 ## Chưa có test tự động
 

@@ -364,6 +364,48 @@ public class TrainingPlanService(AppDbContext context) : ITrainingPlanService
         return true;
     }
 
+    public async Task<TrainingPlanResponseDTO> CompletePlanByMemberAsync(int memberUserId, int planId)
+    {
+        var member = await context.Members
+            .Include(m => m.User)
+            .FirstOrDefaultAsync(m => m.UserId == memberUserId)
+            ?? throw new BusinessException(404, "Không tìm thấy hồ sơ hội viên.");
+
+        var plan = await context.TrainingPlans
+            .Include(p => p.Coach)
+            .FirstOrDefaultAsync(p => p.Id == planId)
+            ?? throw new BusinessException(404, "Không tìm thấy giáo án.");
+
+        if (plan.MemberId != member.Id)
+            throw new BusinessException(403, "Bạn chỉ có thể xác nhận giáo án của chính mình.");
+
+        // Bấm lại khi đã hoàn thành thì trả kết quả hiện tại, không báo lỗi.
+        if (string.Equals(plan.Status, "Completed", StringComparison.OrdinalIgnoreCase))
+            return await GetPlanByIdAsync(plan.Id);
+
+        if (!string.Equals(plan.Status, "Active", StringComparison.OrdinalIgnoreCase))
+            throw new BusinessException(409, "Chỉ đánh dấu đã tập cho giáo án đang áp dụng.");
+
+        if (plan.StartDate > DateTime.UtcNow)
+            throw new BusinessException(409, "Giáo án chưa đến ngày bắt đầu.");
+
+        plan.Status = "Completed";
+
+        if (plan.Coach != null)
+        {
+            context.Notifications.Add(new Notification
+            {
+                UserId = plan.Coach.UserId,
+                Title = "Hội viên đã tập xong giáo án",
+                Content = $"Hội viên {member.User.FullName} đã xác nhận tập xong giáo án \"{plan.PlanName}\" (#{plan.Id}).",
+                SentAt = DateTime.UtcNow
+            });
+        }
+
+        await context.SaveChangesAsync();
+        return await GetPlanByIdAsync(plan.Id);
+    }
+
     public async Task<IEnumerable<object>> GetExercisesCatalogAsync()
     {
         await EnsureDefaultExercisesAsync();

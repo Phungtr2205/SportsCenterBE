@@ -2,7 +2,7 @@
 
 Danh sách **toàn bộ** HTTP endpoint của backend, lấy trực tiếp từ các file trong `Controllers/`.
 
-Tổng: **131** endpoint trong **23** controller.
+Tổng: **132** endpoint trong **23** controller.
 
 Swagger (`/swagger`) vẫn là nơi xem đầy đủ DTO và tham số. File này dùng để tra nhanh: endpoint nào, ai được gọi, thuộc controller nào.
 
@@ -58,13 +58,13 @@ Xem bảng lỗi chung ở [exception-matrix.md](exception-matrix.md).
 | [RoomsController](#rooms--apirooms) | `/api/Rooms` | 6 |
 | [GymCheckInsController](#gym-check-ins--apigymcheckins) | `/api/GymCheckIns` | 8 |
 | [ExercisesController](#exercises--apiexercises) | `/api/Exercises` | 6 |
-| [TrainingPlansController](#training-plans--apitrainingplans) | `/api/TrainingPlans` | 9 |
+| [TrainingPlansController](#training-plans--apitrainingplans) | `/api/TrainingPlans` | 10 |
 | [AIController](#ai--apiai) | `/api/ai` | 7 |
 | [NotificationsController](#notifications--apinotifications) | `/api/notifications` | 2 |
 | [SupportTicketsController](#support-tickets--apisupporttickets) | `/api/SupportTickets` | 5 |
 | [ReportsController](#reports--apireports) | `/api/Reports` | 3 |
 | [AuditLogsController](#audit-logs--apiaudit-logs) | `/api/audit-logs` | 1 |
-| **Tổng** | | **131** |
+| **Tổng** | | **132** |
 
 ## Quyền theo role (tóm tắt)
 
@@ -330,6 +330,7 @@ Ghi chú:
 | PUT | `/api/TrainingPlans/{id}` | Coach | Sửa giáo án |
 | DELETE | `/api/TrainingPlans/{id}` | Coach | Xóa giáo án |
 | POST | `/api/TrainingPlans/{id}/request-change` | Member | Hội viên xin đổi giáo án |
+| POST | `/api/TrainingPlans/{id}/complete` | Member | Hội viên tự xác nhận đã tập xong giáo án (Active → Completed), báo HLV |
 
 ## AI — `/api/ai`
 
